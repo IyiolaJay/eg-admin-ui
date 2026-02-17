@@ -14,7 +14,7 @@ const mockMetrics = {
     total: 100,
     change: { value: 10, direction: 'up' as const },
   },
-  failedOperations: {
+  expiredErrands: {
     total: 50,
     change: { value: -5, direction: 'down' as const },
   },

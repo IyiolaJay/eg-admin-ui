@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, MetricCard, DisputesTable, type Dispute } from '../components';
 import { fetchDashboardMetrics, type DashboardMetrics } from '../services/mock/dashboardMock';
-import { fetchMyDisputes } from '../services/mock/disputesMock';
+import { fetchDisputes } from '../services/disputes';
 import {
   AlertTriangle,
-  XCircle,
   PlusCircle,
   Clock,
   Ban,
   UserPlus,
+  CalendarClock,
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
   const [disputesLoading, setDisputesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [disputesError, setDisputesError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const userRole = sessionStorage.getItem('userRole') || 'admin';
@@ -40,10 +43,18 @@ export const Dashboard: React.FC = () => {
   const loadDisputes = async () => {
     try {
       setDisputesLoading(true);
-      const userRole = sessionStorage.getItem('userRole') || 'admin';
-      const data = await fetchMyDisputes(userRole);
-      setDisputes(data);
+      setDisputesError(null);
+      // Fetch disputes assigned to current user - filter by assignedTo if needed
+      const userStr = sessionStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const userId = user?.id;
+      const response = await fetchDisputes({ 
+        limit: 5,
+        assignedTo: userRole === 'super_admin' ? undefined : userId 
+      });
+      setDisputes(response.disputes);
     } catch (err) {
+      setDisputesError('Failed to load disputes');
       console.error('Error loading disputes:', err);
     } finally {
       setDisputesLoading(false);
@@ -67,6 +78,10 @@ export const Dashboard: React.FC = () => {
   const handleRefresh = () => {
     loadMetrics();
     loadDisputes();
+  };
+
+  const handleDisputeClick = (dispute: Dispute) => {
+    navigate(`/admin/disputes/${dispute.id}`);
   };
 
   return (
@@ -106,14 +121,14 @@ export const Dashboard: React.FC = () => {
         />
 
         <MetricCard
-          title="Failed Operations"
-          value={metrics?.failedOperations.total ?? 0}
-          change={metrics?.failedOperations.change}
-          icon={<XCircle size={20} />}
+          title="Expired Errands"
+          value={metrics?.expiredErrands?.total ?? 0}
+          change={metrics?.expiredErrands?.change}
+          icon={<CalendarClock size={20} />}
           variant="danger"
           loading={loading}
           error={error || undefined}
-          onClick={() => console.log('Navigate to failed operations')}
+          onClick={() => console.log('Navigate to expired errands')}
         />
 
         {/* Errand Analytics */}
@@ -167,7 +182,27 @@ export const Dashboard: React.FC = () => {
             Disputes currently assigned to you for resolution
           </p>
         </div>
-        <DisputesTable disputes={disputes} loading={disputesLoading} />
+        {disputesError ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+            <div className="text-danger mb-4">
+              <AlertTriangle size={48} className="mx-auto" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Error Loading Disputes</h3>
+            <p className="text-gray-600 mb-4">{disputesError}</p>
+            <button
+              onClick={loadDisputes}
+              className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <DisputesTable
+            disputes={disputes}
+            loading={disputesLoading}
+            onDisputeClick={handleDisputeClick}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

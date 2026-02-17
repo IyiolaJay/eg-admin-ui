@@ -12,6 +12,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  UserCog,
+  Gift,
 } from 'lucide-react';
 import errandgoLogo from '../../assets/errandgo-logo.svg';
 
@@ -31,6 +33,16 @@ const navItems: NavItem[] = [
     label: 'Disputes',
     path: '/admin/disputes',
     icon: <AlertTriangle size={20} />,
+  },
+  {
+    label: 'Agents',
+    path: '/admin/agents',
+    icon: <UserCog size={20} />,
+  },
+  {
+    label: 'Reward Hub',
+    path: '/admin/reward-hub',
+    icon: <Gift size={20} />,
   },
   {
     label: 'Failed Operations',

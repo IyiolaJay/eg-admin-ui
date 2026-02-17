@@ -5,18 +5,18 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { Toast } from '../components/Toast';
 import { login } from '../services/auth';
-import { validateEmail, validateRequired } from '../utils/validation';
+import { validateRequired } from '../utils/validation';
 import errandgoLogo from '../assets/errandgo-logo.svg';
 import mockup from '../assets/mockup1.svg';
 
 interface FormErrors {
-  identifier?: string;
+  username?: string;
   password?: string;
 }
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [identifier, setIdentifier] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
@@ -25,10 +25,8 @@ export const Login: React.FC = () => {
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!validateRequired(identifier)) {
-      newErrors.identifier = 'Email or username is required';
-    } else if (identifier.includes('@') && !validateEmail(identifier)) {
-      newErrors.identifier = 'Please enter a valid email address';
+    if (!validateRequired(username)) {
+      newErrors.username = 'Username is required';
     }
 
     if (!validateRequired(password)) {
@@ -50,13 +48,9 @@ export const Login: React.FC = () => {
     setErrors({});
 
     try {
-      const response = await login({ identifier, password });
+      const response = await login({ username, password });
 
       if (response.ok) {
-        // Store token and role (in real app, use secure storage)
-        sessionStorage.setItem('authToken', response.token || '');
-        sessionStorage.setItem('userRole', response.role || '');
-
         setToast({ message: 'Login successful!', type: 'success' });
 
         // Navigate to dashboard after brief delay
@@ -64,17 +58,19 @@ export const Login: React.FC = () => {
           navigate('/admin/dashboard');
         }, 500);
       } else {
-        const errorMessages = {
-          invalid_credentials: 'Invalid email or password. Please try again.',
+        const errorMessages: Record<string, string> = {
+          invalid_credentials: 'Invalid username or password. Please try again.',
           account_locked: 'Your account has been locked. Please contact support.',
+          server_error: 'Server error. Please try again later.',
+          network_error: 'Network error. Please check your connection.',
         };
 
         setToast({
-          message: errorMessages[response.error!] || 'An error occurred. Please try again.',
+          message: errorMessages[response.error!] || response.message || 'An error occurred. Please try again.',
           type: 'error',
         });
       }
-    } catch (error) {
+    } catch {
       setToast({
         message: 'An unexpected error occurred. Please try again.',
         type: 'error',
@@ -84,7 +80,7 @@ export const Login: React.FC = () => {
     }
   };
 
-  const isFormValid = validateRequired(identifier) && validateRequired(password);
+  const isFormValid = validateRequired(username) && validateRequired(password);
 
   return (
     <div className="min-h-screen flex">
@@ -144,15 +140,15 @@ export const Login: React.FC = () => {
             <form onSubmit={handleSubmit} noValidate>
               <div className="space-y-5">
                 <Input
-                  label="Email or Username"
+                  label="Username"
                   type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  error={errors.identifier}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  error={errors.username}
                   disabled={loading}
                   autoComplete="username"
                   autoFocus
-                  placeholder="admin@errandgo.test"
+                  placeholder="Enter your username"
                 />
 
                 <Input
@@ -197,9 +193,8 @@ export const Login: React.FC = () => {
             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
               <p className="text-xs text-gray-600 font-medium mb-2">Test Credentials:</p>
               <div className="space-y-1 text-xs text-gray-600">
-                <p>Admin: admin@errandgo.test / password123</p>
-                <p>Super Admin: super@errandgo.test / superpass</p>
-                <p>Locked Account: locked@errandgo.test</p>
+                <p>Username: superadmin</p>
+                <p>Password: SuperAdmin@2024</p>
               </div>
             </div>
           </div>

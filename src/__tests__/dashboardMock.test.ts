@@ -6,7 +6,7 @@ describe('Dashboard Mock Service', () => {
     const metrics = await fetchDashboardMetrics();
 
     expect(metrics).toHaveProperty('disputes');
-    expect(metrics).toHaveProperty('failedOperations');
+    expect(metrics).toHaveProperty('expiredErrands');
     expect(metrics).toHaveProperty('errandsCreatedToday');
     expect(metrics).toHaveProperty('errandsInProgress');
     expect(metrics).toHaveProperty('errandsCancelled');
@@ -28,8 +28,8 @@ describe('Dashboard Mock Service', () => {
     expect(metrics.disputes.total).toBeGreaterThanOrEqual(50);
     expect(metrics.disputes.total).toBeLessThanOrEqual(200);
 
-    expect(metrics.failedOperations.total).toBeGreaterThanOrEqual(10);
-    expect(metrics.failedOperations.total).toBeLessThanOrEqual(80);
+    expect(metrics.expiredErrands.total).toBeGreaterThanOrEqual(10);
+    expect(metrics.expiredErrands.total).toBeLessThanOrEqual(80);
 
     expect(metrics.errandsCreatedToday.total).toBeGreaterThanOrEqual(100);
     expect(metrics.errandsCreatedToday.total).toBeLessThanOrEqual(500);
@@ -41,7 +41,7 @@ describe('Dashboard Mock Service', () => {
     const validDirections = ['up', 'down', 'neutral'];
     
     expect(validDirections).toContain(metrics.disputes.change.direction);
-    expect(validDirections).toContain(metrics.failedOperations.change.direction);
+    expect(validDirections).toContain(metrics.expiredErrands.change.direction);
     expect(validDirections).toContain(metrics.errandsInProgress.change.direction);
   });
 

@@ -2,7 +2,7 @@ import React from 'react';
 import type { ButtonHTMLAttributes } from 'react';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'text';
+  variant?: 'primary' | 'secondary' | 'text' | 'outline' | 'danger' | 'success';
   loading?: boolean;
   fullWidth?: boolean;
 }
@@ -28,7 +28,6 @@ export const Button: React.FC<ButtonProps> = ({
     'duration-200',
     'focus:outline-none',
     'focus:ring-2',
-    'focus:ring-secondary',
     'focus:ring-offset-2',
     'disabled:cursor-not-allowed',
     'disabled:opacity-60',
@@ -41,6 +40,7 @@ export const Button: React.FC<ButtonProps> = ({
       'text-white',
       'hover:bg-secondary/90',
       'active:bg-secondary/80',
+      'focus:ring-secondary',
     ],
     secondary: [
       'bg-tertiary',
@@ -49,11 +49,36 @@ export const Button: React.FC<ButtonProps> = ({
       'border-gray-300',
       'hover:bg-tertiary/80',
       'active:bg-tertiary/70',
+      'focus:ring-secondary',
     ],
     text: [
       'text-secondary',
       'hover:bg-secondary/10',
       'active:bg-secondary/20',
+      'focus:ring-secondary',
+    ],
+    outline: [
+      'bg-white',
+      'text-gray-700',
+      'border',
+      'border-gray-300',
+      'hover:bg-gray-50',
+      'active:bg-gray-100',
+      'focus:ring-secondary',
+    ],
+    danger: [
+      'bg-red-600',
+      'text-white',
+      'hover:bg-red-700',
+      'active:bg-red-800',
+      'focus:ring-red-500',
+    ],
+    success: [
+      'bg-green-600',
+      'text-white',
+      'hover:bg-green-700',
+      'active:bg-green-800',
+      'focus:ring-green-500',
     ],
   };
 
@@ -96,7 +121,7 @@ export const Button: React.FC<ButtonProps> = ({
           </svg>
         </span>
       )}
-      <span className={loading ? 'invisible' : ''}>
+      <span className={`inline-flex items-center gap-2 ${loading ? 'invisible' : ''}`}>
         {children}
       </span>
     </button>

@@ -13,8 +13,24 @@ export type { MetricCardProps, MetricVariant, MetricChange, ChangeDirection } fr
 export { DisputesTable } from './DisputesTable';
 export type { Dispute } from './DisputesTable';
 
+export { DisputeDetails } from './DisputeDetails';
+
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';
 
 export { Navbar } from './Layout/Navbar';
 export { DashboardLayout } from './Layout/DashboardLayout';
+
+// Users
+export { UsersTable } from './UsersTable';
+export { UserDetails } from './UserDetails';
+export { CreateUserModal } from './CreateUserModal';
+
+// Rewards
+export { RewardsList } from './RewardsList';
+export { ConfigureRewardModal } from './ConfigureRewardModal';
+
+// Agents
+export { AgentsList } from './AgentsList';
+export { AgentDetails } from './AgentDetails';
+export { CreateAgentModal } from './CreateAgentModal';

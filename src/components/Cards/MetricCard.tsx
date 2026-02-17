@@ -23,19 +23,19 @@ export interface MetricCardProps {
 const variantStyles: Record<MetricVariant, { icon: string; accent: string }> = {
   default: {
     icon: 'text-secondary bg-secondary/10',
-    accent: 'border-secondary/20',
+    accent: 'border-secondary',
   },
   success: {
     icon: 'text-success bg-success/10',
-    accent: 'border-success/20',
+    accent: 'border-success',
   },
   warning: {
     icon: 'text-warning bg-warning/10',
-    accent: 'border-warning/20',
+    accent: 'border-warning',
   },
   danger: {
     icon: 'text-danger bg-danger/10',
-    accent: 'border-danger/20',
+    accent: 'border-danger',
   },
 };
 

@@ -8,7 +8,7 @@ export interface MetricData {
 
 export interface DashboardMetrics {
   disputes: MetricData;
-  failedOperations: MetricData;
+  expiredErrands: MetricData;
   errandsCreatedToday: MetricData;
   errandsInProgress: MetricData;
   errandsCancelled: MetricData;
@@ -42,7 +42,7 @@ export async function fetchDashboardMetrics(): Promise<DashboardMetrics> {
         direction: randomDirection(),
       },
     },
-    failedOperations: {
+    expiredErrands: {
       total: randomBetween(10, 80),
       change: {
         value: randomChange(-10, 10),
