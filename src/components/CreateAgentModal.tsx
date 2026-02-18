@@ -146,7 +146,7 @@ export const CreateAgentModal: React.FC<CreateAgentModalProps> = ({
             {/* Info Box */}
             <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
               <p className="text-sm text-blue-700">
-                <strong>Note:</strong> The agent will receive an SMS with login instructions. 
+                <strong>Note:</strong> Please instruct agent to login with registered phone number.
                 A referral code will be automatically generated for them.
               </p>
             </div>

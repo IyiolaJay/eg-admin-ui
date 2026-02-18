@@ -51,7 +51,7 @@ export const UserDetails: React.FC<UserDetailsProps> = ({
         <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-            <h2 className="text-xl font-bold text-gray-900">User Details</h2>
+            <h2 className="text-xl font-bold text-gray-900">Admin Details</h2>
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
@@ -176,7 +176,7 @@ export const UserDetails: React.FC<UserDetailsProps> = ({
                   onClick={() => {/* Edit logic */}}
                 >
                   <Edit size={18} />
-                  <span>Edit User</span>
+                  <span>Edit Admin</span>
                 </Button>
                 
                 {user.isActive ? (
@@ -186,7 +186,7 @@ export const UserDetails: React.FC<UserDetailsProps> = ({
                     onClick={() => onDeactivate?.(user.id)}
                   >
                     <UserX size={18} />
-                    <span>Deactivate User</span>
+                    <span>Deactivate Admin</span>
                   </Button>
                 ) : (
                   <Button
@@ -195,7 +195,7 @@ export const UserDetails: React.FC<UserDetailsProps> = ({
                     onClick={() => onActivate?.(user.id)}
                   >
                     <UserCheck size={18} />
-                    <span>Activate User</span>
+                    <span>Activate Admin</span>
                   </Button>
                 )}
               </div>

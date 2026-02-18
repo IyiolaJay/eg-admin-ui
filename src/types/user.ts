@@ -12,7 +12,6 @@ export interface CreateUserRequest {
   lastName: string;
   email: string;
   phoneNumber: string;
-  password: string;
   role: UserRole;
 }
 

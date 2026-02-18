@@ -101,7 +101,7 @@ export const Users: React.FC = () => {
     <DashboardLayout>
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Users</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Admins</h1>
           <p className="text-gray-600 mt-1">Manage admin users and permissions</p>
         </div>
         
@@ -112,7 +112,7 @@ export const Users: React.FC = () => {
           >
             <span className="flex items-center gap-2 whitespace-nowrap">
               <Plus size={20} />
-              Create New User
+              Create New Admin
             </span>
           </Button>
         )}
@@ -123,7 +123,7 @@ export const Users: React.FC = () => {
           <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <UsersIcon size={32} className="text-secondary" />
           </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Users Found</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Admins Found</h2>
           <p className="text-gray-600 max-w-md mx-auto">
             {isSuperAdminUser 
               ? "Get started by creating your first admin user."
@@ -147,7 +147,7 @@ export const Users: React.FC = () => {
         />
       )}
 
-      {/* User Details Modal */}
+      {/* Admin Details Modal */}
       {selectedUser && (
         <UserDetails
           user={selectedUser}

@@ -63,7 +63,7 @@ const navItems: NavItem[] = [
     allowedRoles: ['super_admin'],
   },
   {
-    label: 'Users',
+    label: 'Admins',
     path: '/admin/users',
     icon: <Users size={20} />,
     allowedRoles: ['admin', 'super_admin'],
