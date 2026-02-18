@@ -54,6 +54,17 @@ export const ENDPOINTS = {
   DASHBOARD_METRICS: '/dashboard/metrics',
   DASHBOARD_ANALYTICS: '/dashboard/analytics',
   
+  // Analytics
+  ANALYTICS_TREND: '/analytics/trend',
+  ANALYTICS_AGGREGATE: '/analytics/aggregate',
+  ANALYTICS_TODAY: '/analytics/today',
+  ANALYTICS_BY_DATE: (date: string) => `/analytics/date/${date}`,
+  ANALYTICS_BY_RANGE: '/analytics/range',
+  
+  // Wallets
+  WALLETS: '/wallets',
+  WALLET_DETAILS: (id: string) => `/wallets/${id}`,
+  
   // Agents
   AGENTS: '/agents',
   AGENT_DETAILS: (id: string) => `/agents/${id}`,

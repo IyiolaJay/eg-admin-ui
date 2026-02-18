@@ -14,6 +14,7 @@ import {
   ChevronRight,
   UserCog,
   Gift,
+  BarChart3,
 } from 'lucide-react';
 import errandgoLogo from '../../assets/errandgo-logo.svg';
 
@@ -21,6 +22,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  allowedRoles?: string[];
 }
 
 const navItems: NavItem[] = [
@@ -28,33 +30,50 @@ const navItems: NavItem[] = [
     label: 'Dashboard',
     path: '/admin/dashboard',
     icon: <LayoutDashboard size={20} />,
+    allowedRoles: ['admin', 'super_admin'],
+  },
+  {
+    label: 'Performance',
+    path: '/admin/performance',
+    icon: <BarChart3 size={20} />,
+    allowedRoles: ['super_admin'],
   },
   {
     label: 'Disputes',
     path: '/admin/disputes',
     icon: <AlertTriangle size={20} />,
+    allowedRoles: ['admin', 'super_admin'],
   },
   {
     label: 'Agents',
     path: '/admin/agents',
     icon: <UserCog size={20} />,
+    allowedRoles: ['admin', 'super_admin'],
   },
   {
     label: 'Reward Hub',
     path: '/admin/reward-hub',
     icon: <Gift size={20} />,
+    allowedRoles: ['super_admin'],
   },
   {
     label: 'Failed Operations',
     path: '/admin/failed-operations',
     icon: <XCircle size={20} />,
+    allowedRoles: ['super_admin'],
   },
   {
     label: 'Users',
     path: '/admin/users',
     icon: <Users size={20} />,
+    allowedRoles: ['admin', 'super_admin'],
   },
 ];
+
+// Helper function to filter nav items based on user role
+const filterNavItems = (items: NavItem[], role: string): NavItem[] => {
+  return items.filter(item => !item.allowedRoles || item.allowedRoles.includes(role));
+};
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
@@ -65,9 +84,14 @@ export const Navbar: React.FC = () => {
   const userRole = sessionStorage.getItem('userRole') || 'admin';
   const userName = userRole === 'super_admin' ? 'Super Admin' : 'Admin';
 
+  // Filter nav items based on user role
+  const filteredNavItems = filterNavItems(navItems, userRole);
+
   const handleLogout = () => {
     sessionStorage.removeItem('authToken');
     sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('expiresIn');
     navigate('/');
   };
 
@@ -111,7 +135,7 @@ export const Navbar: React.FC = () => {
         {/* Navigation Links */}
         <nav className="flex-1 overflow-y-auto py-4 px-3" aria-label="Main navigation">
           <div className="space-y-1">
-            {navItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const active = isActive(item.path);
               const linkClasses = [
                 'flex',
@@ -295,7 +319,7 @@ export const Navbar: React.FC = () => {
             aria-label="Mobile navigation"
           >
             <div className="p-4 space-y-1">
-              {navItems.map((item) => {
+              {filteredNavItems.map((item) => {
                 const active = isActive(item.path);
                 const linkClasses = [
                   'flex',

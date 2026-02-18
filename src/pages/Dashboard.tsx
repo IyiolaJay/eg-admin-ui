@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, MetricCard, DisputesTable, type Dispute } from '../components';
-import { fetchDashboardMetrics, type DashboardMetrics } from '../services/mock/dashboardMock';
+import { fetchDashboardMetrics, type DashboardMetrics } from '../services/analytics';
 import { fetchDisputes } from '../services/disputes';
 import {
   AlertTriangle,
@@ -29,7 +29,7 @@ export const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchDashboardMetrics();
+      const data = await fetchDashboardMetrics(2); // Get 2 days of data for comparison
       setMetrics(data);
       setLastUpdated(new Date());
     } catch (err) {

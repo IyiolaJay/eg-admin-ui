@@ -123,12 +123,67 @@ export async function fetchMyDisputes(): Promise<Dispute[]> {
 export async function fetchDisputeById(id: string): Promise<Dispute> {
   try {
     const response = await apiClient.get<SingleDisputeApiResponse>(ENDPOINTS.DISPUTE_DETAILS(id));
-    
+
     if (response.data.success && response.data.content) {
       return response.data.content;
     }
-    
+
     throw new Error(response.data.message || 'Failed to fetch dispute details');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+export interface UpdateDisputeStatusParams {
+  status: 'OPEN' | 'IN_REVIEW' | 'PENDING_INFORMATION' | 'RESOLVED' | 'ESCALATED';
+  resolution?: string;
+}
+
+/**
+ * Update dispute status
+ */
+export async function updateDisputeStatus(
+  id: string,
+  params: UpdateDisputeStatusParams
+): Promise<Dispute> {
+  try {
+    const response = await apiClient.patch<SingleDisputeApiResponse>(
+      `${ENDPOINTS.DISPUTES}/${id}/status`,
+      params
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to update dispute status');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+export interface AssignDisputeParams {
+  assignedTo: string;
+}
+
+/**
+ * Assign dispute to admin
+ */
+export async function assignDispute(
+  id: string,
+  params: AssignDisputeParams
+): Promise<Dispute> {
+  try {
+    const response = await apiClient.patch<SingleDisputeApiResponse>(
+      `${ENDPOINTS.DISPUTES}/${id}/assign`,
+      params
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to assign dispute');
   } catch (error) {
     throw new Error(extractApiErrorMessage(error));
   }

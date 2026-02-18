@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
+import { Performance } from './pages/Performance';
 import { Disputes } from './pages/Disputes';
 import { DisputeDetail } from './pages/DisputeDetail';
 import { FailedOperations } from './pages/FailedOperations';
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/admin/dashboard" element={<Dashboard />} />
+        <Route path="/admin/performance" element={<Performance />} />
         <Route path="/admin/disputes" element={<Disputes />} />
         <Route path="/admin/disputes/:id" element={<DisputeDetail />} />
         <Route path="/admin/agents" element={<Agents />} />

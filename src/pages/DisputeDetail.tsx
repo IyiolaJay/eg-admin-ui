@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components';
-import { fetchDisputeById } from '../services/disputes';
+import { fetchDisputeById, updateDisputeStatus, assignDispute, type UpdateDisputeStatusParams } from '../services/disputes';
 import { fetchErrandById, type Errand } from '../services/errands';
 import { fetchUserById, fetchUsers } from '../services/users';
 import type { User as UserType } from '../types/user';
@@ -29,6 +29,8 @@ import {
   ChevronDown,
   X,
   Search,
+  RefreshCw,
+  ArrowRight,
 } from 'lucide-react';
 
 interface AuditLogEntry {
@@ -78,6 +80,23 @@ const statusThemes: Record<string, { border: string; badge: string; dot: string 
   },
 };
 
+// Valid status transitions
+const validTransitions: Record<string, string[]> = {
+  OPEN: ['IN_REVIEW', 'RESOLVED', 'ESCALATED'],
+  IN_REVIEW: ['PENDING_INFORMATION', 'RESOLVED', 'ESCALATED'],
+  PENDING_INFORMATION: ['IN_REVIEW', 'RESOLVED', 'ESCALATED'],
+  ESCALATED: ['IN_REVIEW', 'RESOLVED'],
+  RESOLVED: [],
+};
+
+const statusLabels: Record<string, string> = {
+  OPEN: 'Open',
+  IN_REVIEW: 'In Review',
+  PENDING_INFORMATION: 'Pending Information',
+  RESOLVED: 'Resolved',
+  ESCALATED: 'Escalated',
+};
+
 export const DisputeDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -96,6 +115,14 @@ export const DisputeDetail: React.FC = () => {
   const [admins, setAdmins] = useState<UserType[]>([]);
   const [adminsLoading, setAdminsLoading] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  
+  // Status update state
+  const [statusModalOpen, setStatusModalOpen] = useState(false);
+  const [resolveModalOpen, setResolveModalOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>('');
+  const [resolutionText, setResolutionText] = useState('');
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -168,10 +195,17 @@ export const DisputeDetail: React.FC = () => {
     }
   };
 
-  const handleAssignToMe = () => {
-    setAssignDropdownOpen(false);
-    // TODO: Implement assign to me API call
-    console.log('Assign to me');
+  const handleAssignToMe = async () => {
+    if (!dispute || !currentUserId) return;
+    
+    try {
+      const updatedDispute = await assignDispute(dispute.id, { assignedTo: currentUserId });
+      setDispute(updatedDispute as DisputeDetail);
+      setAssignDropdownOpen(false);
+    } catch (err) {
+      console.error('Error assigning to me:', err);
+      // Could show an error toast here
+    }
   };
 
   const handleAssignToOther = () => {
@@ -180,10 +214,77 @@ export const DisputeDetail: React.FC = () => {
     loadAdmins();
   };
 
-  const handleSelectAdmin = (adminId: string) => {
-    // TODO: Implement assign to specific admin API call
-    console.log('Assign to admin:', adminId);
-    setAssignModalOpen(false);
+  const handleSelectAdmin = async (adminId: string) => {
+    if (!dispute) return;
+    
+    try {
+      const updatedDispute = await assignDispute(dispute.id, { assignedTo: adminId });
+      setDispute(updatedDispute as DisputeDetail);
+      setAssignModalOpen(false);
+    } catch (err) {
+      console.error('Error assigning to admin:', err);
+      // Could show an error toast here
+    }
+  };
+
+  // Status update handlers
+  const handleStatusClick = () => {
+    setStatusModalOpen(true);
+    setStatusError(null);
+  };
+
+  const handleResolveClick = () => {
+    setResolveModalOpen(true);
+    setResolutionText('');
+    setStatusError(null);
+  };
+
+  const handleUpdateStatus = async () => {
+    if (!dispute || !selectedStatus) return;
+    
+    try {
+      setUpdatingStatus(true);
+      setStatusError(null);
+      
+      const params: UpdateDisputeStatusParams = { status: selectedStatus as any };
+      
+      const updatedDispute = await updateDisputeStatus(dispute.id, params);
+      setDispute(updatedDispute as DisputeDetail);
+      setStatusModalOpen(false);
+      setSelectedStatus('');
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to update status');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!dispute || !resolutionText.trim()) return;
+    
+    try {
+      setUpdatingStatus(true);
+      setStatusError(null);
+      
+      const params: UpdateDisputeStatusParams = {
+        status: 'RESOLVED',
+        resolution: resolutionText.trim(),
+      };
+      
+      const updatedDispute = await updateDisputeStatus(dispute.id, params);
+      setDispute(updatedDispute as DisputeDetail);
+      setResolveModalOpen(false);
+      setResolutionText('');
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : 'Failed to resolve dispute');
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  const getAvailableTransitions = () => {
+    if (!dispute) return [];
+    return validTransitions[dispute.status] || [];
   };
 
   const filteredAdmins = admins.filter(admin => 
@@ -328,6 +429,17 @@ export const DisputeDetail: React.FC = () => {
   }
 
   const theme = statusThemes[dispute.status] || statusThemes.OPEN;
+  const availableTransitions = getAvailableTransitions();
+  
+  // Check if current user is the assigned admin
+  const currentUserStr = sessionStorage.getItem('user');
+  const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+  const currentUserId = currentUser?.id;
+  const isAssignedToCurrentUser = dispute.assignedTo === currentUserId;
+  
+  const canResolve = availableTransitions.includes('RESOLVED') && isAssignedToCurrentUser;
+  const canEscalate = availableTransitions.includes('ESCALATED') && isAssignedToCurrentUser;
+  const canChangeStatus = availableTransitions.length > 0 && isAssignedToCurrentUser;
 
   return (
     <DashboardLayout>
@@ -379,51 +491,87 @@ export const DisputeDetail: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2">
-                  {!dispute.assignedTo && (
-                    <div className="relative" ref={dropdownRef}>
-                      <button 
-                        onClick={() => setAssignDropdownOpen(!assignDropdownOpen)}
-                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
-                      >
-                        <UserPlus size={18} />
-                        Assign
-                        <ChevronDown size={16} className={`transition-transform ${assignDropdownOpen ? 'rotate-180' : ''}`} />
-                      </button>
-                      
-                      {/* Dropdown Menu */}
-                      {assignDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                          <button
-                            onClick={handleAssignToMe}
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <UserPlus size={16} className="text-purple-600" />
-                            Assign to Me
-                          </button>
-                          <button
-                            onClick={handleAssignToOther}
-                            className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                          >
-                            <User size={16} className="text-purple-600" />
-                            Assign to Other
-                          </button>
-                        </div>
-                      )}
+                <div className="flex flex-col items-end gap-2">
+                  {/* Assignment Status Indicator */}
+                  {!isAssignedToCurrentUser && dispute.assignedTo && (
+                    <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg mb-2">
+                      <AlertTriangle size={14} />
+                      <span>Assigned to another admin</span>
                     </div>
                   )}
-                  {dispute.status !== 'RESOLVED' && (
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2">
-                      <CheckCircle size={18} />
-                      Resolve
-                    </button>
-                  )}
-                  {dispute.status !== 'ESCALATED' && dispute.status !== 'RESOLVED' && (
-                    <button className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2">
-                      <Flag size={18} />
-                      Escalate
-                    </button>
-                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    {/* Assign Button - Show if unassigned or assigned to someone else */}
+                    {(!dispute.assignedTo || !isAssignedToCurrentUser) && (
+                      <div className="relative" ref={dropdownRef}>
+                        <button 
+                          onClick={() => setAssignDropdownOpen(!assignDropdownOpen)}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2"
+                        >
+                          <UserPlus size={18} />
+                          {dispute.assignedTo ? 'Reassign' : 'Assign'}
+                          <ChevronDown size={16} className={`transition-transform ${assignDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        {/* Dropdown Menu */}
+                        {assignDropdownOpen && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                            <button
+                              onClick={handleAssignToMe}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <UserPlus size={16} className="text-purple-600" />
+                              Assign to Me
+                            </button>
+                            <button
+                              onClick={handleAssignToOther}
+                              className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            >
+                              <User size={16} className="text-purple-600" />
+                              Assign to Other
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Status Update Dropdown - Only if assigned to current user */}
+                    {canChangeStatus && (
+                      <div className="relative">
+                        <button 
+                          onClick={handleStatusClick}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+                        >
+                          <RefreshCw size={18} />
+                          Update Status
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
+                    )}
+                    
+                    {canResolve && (
+                      <button 
+                        onClick={handleResolveClick}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                      >
+                        <CheckCircle size={18} />
+                        Resolve
+                      </button>
+                    )}
+                    
+                    {canEscalate && (
+                      <button 
+                        onClick={() => {
+                          setSelectedStatus('ESCALATED');
+                          handleUpdateStatus();
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center gap-2"
+                      >
+                        <Flag size={18} />
+                        Escalate
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -762,6 +910,197 @@ export const DisputeDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Status Update Modal */}
+      {statusModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Update Status</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Current: {statusLabels[dispute?.status || '']}
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  setStatusModalOpen(false);
+                  setSelectedStatus('');
+                  setStatusError(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Status Options */}
+            <div className="p-6">
+              {statusError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                  {statusError}
+                </div>
+              )}
+              
+              <div className="space-y-2">
+                {availableTransitions
+                  .filter(status => status !== 'RESOLVED') // RESOLVED has its own modal
+                  .map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setSelectedStatus(status)}
+                      className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
+                        selectedStatus === status
+                          ? 'border-secondary bg-secondary/5'
+                          : 'border-gray-200 hover:border-secondary/50 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {getStatusBadge(status)}
+                        </div>
+                        {selectedStatus === status && (
+                          <CheckCircle size={20} className="text-secondary" />
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2">
+                        Transition from {statusLabels[dispute?.status || '']} to {statusLabels[status]}
+                      </p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex gap-3">
+              <button 
+                onClick={() => {
+                  setStatusModalOpen(false);
+                  setSelectedStatus('');
+                  setStatusError(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleUpdateStatus}
+                disabled={!selectedStatus || updatingStatus}
+                className="flex-1 px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/90 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {updatingStatus ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    Update Status
+                    <ArrowRight size={16} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resolve Modal */}
+      {resolveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Resolve Dispute</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Provide resolution details before marking as resolved
+                </p>
+              </div>
+              <button 
+                onClick={() => {
+                  setResolveModalOpen(false);
+                  setResolutionText('');
+                  setStatusError(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            
+            {/* Resolution Form */}
+            <div className="p-6">
+              {statusError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                  {statusError}
+                </div>
+              )}
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Resolution Details <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={resolutionText}
+                  onChange={(e) => setResolutionText(e.target.value)}
+                  placeholder="Describe how the dispute was resolved. Include any transaction IDs, compensation details, or actions taken."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary min-h-[120px] resize-y"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {resolutionText.length} characters
+                </p>
+              </div>
+              
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-800">
+                      This action cannot be undone
+                    </p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Once resolved, the dispute cannot be reopened or modified. Please ensure all details are correct.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex gap-3">
+              <button 
+                onClick={() => {
+                  setResolveModalOpen(false);
+                  setResolutionText('');
+                  setStatusError(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleResolve}
+                disabled={!resolutionText.trim() || updatingStatus}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {updatingStatus ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                    Resolving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={18} />
+                    Resolve Dispute
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assign to Other Modal */}
       {assignModalOpen && (

@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosError, type AxiosRequestConfig, type AxiosResponse } from 'axios';
-import { CORE_API_URL, API_TIMEOUT } from './config';
+import { CORE_API_URL, PAYMENT_API_URL, API_TIMEOUT } from './config';
 
 // Custom API Error class to handle API response messages
 export class ApiError extends Error {
@@ -64,7 +64,17 @@ const apiClient: AxiosInstance = axios.create({
   },
 });
 
-// Request interceptor - Add auth token to requests
+// Create axios instance for Payment Services API
+export const paymentApiClient: AxiosInstance = axios.create({
+  baseURL: PAYMENT_API_URL,
+  timeout: API_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
+});
+
+// Request interceptor - Add auth token to requests (for both clients)
 apiClient.interceptors.request.use(
   (config) => {
     const token = sessionStorage.getItem('authToken');
@@ -73,34 +83,49 @@ apiClient.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
+);
+
+paymentApiClient.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem('authToken');
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor - Handle errors globally
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    return response;
-  },
-  async (error: AxiosError<{ success: boolean; message: string; error: string }>) => {
-    // Handle 401 Unauthorized - Token expired or invalid
-    if (error.response?.status === 401) {
-      // Clear auth data and redirect to login
-      sessionStorage.removeItem('authToken');
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('expiresIn');
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-
-    // Handle network errors
-    if (!error.response) {
-      console.error('Network Error: No response received from server');
-    }
-
+const handleResponseError = async (error: AxiosError<{ success: boolean; message: string; error: string }>) => {
+  // Handle 401 Unauthorized - Token expired or invalid
+  if (error.response?.status === 401) {
+    // Clear auth data and redirect to login
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('expiresIn');
+    window.location.href = '/login';
     return Promise.reject(error);
   }
+
+  // Handle network errors
+  if (!error.response) {
+    console.error('Network Error: No response received from server');
+  }
+
+  return Promise.reject(error);
+};
+
+apiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  handleResponseError
+);
+
+paymentApiClient.interceptors.response.use(
+  (response: AxiosResponse) => response,
+  handleResponseError
 );
 
 // Generic API request function
@@ -119,5 +144,5 @@ export async function apiRequest<T>(
   return response.data;
 }
 
-// Export the configured axios instance
+// Export the configured axios instances
 export default apiClient;

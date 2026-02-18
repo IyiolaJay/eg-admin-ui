@@ -26,6 +26,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = useCallback((user: AdminUser, token: string, expiresIn: number) => {
     sessionStorage.setItem('authToken', token);
     sessionStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('userRole', user.role);
     sessionStorage.setItem('expiresIn', expiresIn.toString());
     
     setAuthState({

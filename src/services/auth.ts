@@ -25,6 +25,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
       // Store token and user data (no refresh token)
       sessionStorage.setItem('authToken', accessToken);
       sessionStorage.setItem('user', JSON.stringify(admin));
+      sessionStorage.setItem('userRole', admin.role);
       sessionStorage.setItem('expiresIn', expiresIn.toString());
 
       return {
@@ -97,6 +98,7 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 export function logout(): void {
   sessionStorage.removeItem('authToken');
   sessionStorage.removeItem('user');
+  sessionStorage.removeItem('userRole');
   sessionStorage.removeItem('expiresIn');
 }
 
