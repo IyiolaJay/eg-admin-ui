@@ -106,8 +106,21 @@ describe('Login Page', () => {
     const mockLogin = vi.mocked(authService.login);
     mockLogin.mockResolvedValue({
       ok: true,
-      role: 'admin',
       token: 'mock-token',
+      user: {
+        id: '1',
+        username: 'admin',
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@errandgo.test',
+        phoneNumber: '+1234567890',
+        role: 'admin',
+        isActive: true,
+        lastLogin: new Date().toISOString(),
+        createdBy: 'system',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     });
 
     renderLogin();
@@ -179,7 +192,24 @@ describe('Login Page', () => {
   it('should show loading state during login', async () => {
     const user = userEvent.setup();
     const mockLogin = vi.mocked(authService.login);
-    mockLogin.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ ok: true, role: 'admin', token: 'test' }), 1000)));
+    mockLogin.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ 
+      ok: true, 
+      token: 'test',
+      user: {
+        id: '1',
+        username: 'admin',
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@errandgo.test',
+        phoneNumber: '+1234567890',
+        role: 'admin',
+        isActive: true,
+        lastLogin: new Date().toISOString(),
+        createdBy: 'system',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    }), 1000)));
 
     renderLogin();
 
