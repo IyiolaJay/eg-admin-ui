@@ -101,12 +101,19 @@ paymentApiClient.interceptors.request.use(
 const handleResponseError = async (error: AxiosError<{ success: boolean; message: string; error: string }>) => {
   // Handle 401 Unauthorized - Token expired or invalid
   if (error.response?.status === 401) {
-    // Clear auth data and redirect to login
-    sessionStorage.removeItem('authToken');
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('userRole');
-    sessionStorage.removeItem('expiresIn');
-    window.location.href = '/login';
+    // Don't redirect if this is a login attempt - let the login page handle it
+    const requestUrl = error.config?.url || '';
+    const isLoginRequest = requestUrl.includes('/admin/login') || requestUrl.includes('/auth/login');
+    
+    if (!isLoginRequest) {
+      // Clear auth data and redirect to login only for authenticated endpoints
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('userRole');
+      sessionStorage.removeItem('expiresIn');
+      window.location.href = '/login';
+    }
+    
     return Promise.reject(error);
   }
 

@@ -100,7 +100,7 @@ export const Login: React.FC = () => {
 
         <div className="relative z-10">
           {/* Logo */}
-          <img src={orbitaOneLogo} alt="OrbitaOne" className="h-24" />
+          <img src={orbitaOneLogo} alt="OrbitaOne" className="h-16" />
         </div>
 
         {/* Value Proposition */}
