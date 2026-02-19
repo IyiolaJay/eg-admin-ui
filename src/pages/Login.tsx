@@ -6,7 +6,8 @@ import { Button } from '../components/Button';
 import { Toast } from '../components/Toast';
 import { login } from '../services/auth';
 import { validateRequired } from '../utils/validation';
-import errandgoLogo from '../assets/errandgo-logo.svg';
+// import errandgoLogo from '../assets/errandgo-logo.svg';
+import orbitaOneLogo from '../assets/orbitaone.svg'
 import mockup from '../assets/mockup1.svg';
 
 interface FormErrors {
@@ -21,6 +22,7 @@ export const Login: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -46,6 +48,7 @@ export const Login: React.FC = () => {
 
     setLoading(true);
     setErrors({});
+    setLoginError(null);
 
     try {
       const response = await login({ username, password });
@@ -65,14 +68,18 @@ export const Login: React.FC = () => {
           network_error: 'Network error. Please check your connection.',
         };
 
+        const errorMessage = errorMessages[response.error!] || response.message || 'An error occurred. Please try again.';
+        setLoginError(errorMessage);
         setToast({
-          message: errorMessages[response.error!] || response.message || 'An error occurred. Please try again.',
+          message: errorMessage,
           type: 'error',
         });
       }
     } catch {
+      const errorMessage = 'An unexpected error occurred. Please try again.';
+      setLoginError(errorMessage);
       setToast({
-        message: 'An unexpected error occurred. Please try again.',
+        message: errorMessage,
         type: 'error',
       });
     } finally {
@@ -99,27 +106,27 @@ export const Login: React.FC = () => {
 
         <div className="relative z-10">
           {/* Logo */}
-          <img src={errandgoLogo} alt="ErrandGo" className="h-12" />
+          <img src={orbitaOneLogo} alt="OrbitaOne" className="h-24" />
         </div>
 
         {/* Value Proposition */}
         <div className="relative z-10 space-y-6">
           <h1 className="text-4xl font-bold text-white leading-tight">
-            Management Portal
+            Admin Portal
             <br />
           </h1>
           <p className="text-lg text-white/90 max-w-md">
-             Admin portal for errand management.
+             Centralized platform for administrative management.
           </p>
           <div className="space-y-4 pt-4">
             <Feature text="Comprehensive analytics dashboard" />
-            <Feature text="In-House errand runner management" />
+            <Feature text="Operations & user management" />
           </div>
         </div>
 
         <div className="relative z-10">
           <p className="text-white/70 text-sm">
-            &copy; 2026 ErrandGo. All rights reserved.
+            &copy; 2026 OrbitaOne. All rights reserved.
           </p>
         </div>
       </div>
@@ -139,6 +146,18 @@ export const Login: React.FC = () => {
 
             <form onSubmit={handleSubmit} noValidate>
               <div className="space-y-5">
+                {/* Login Error Alert */}
+                {loginError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                    <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-red-800">Login Failed</p>
+                      <p className="text-sm text-red-700 mt-1">{loginError}</p>
+                    </div>
+                  </div>
+                )}
                 <Input
                   label="Username"
                   type="text"

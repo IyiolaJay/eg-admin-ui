@@ -2,6 +2,16 @@ import React, { useState } from 'react';
 import { AlertTriangle, Clock, CheckCircle, Inbox, SearchX } from 'lucide-react';
 import { Pagination } from './Pagination';
 
+interface Admin {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  role: 'ADMIN' | 'SUPER_ADMIN';
+}
+
 export interface Dispute {
   id: string;
   disputeTitle: string;
@@ -13,9 +23,14 @@ export interface Dispute {
   raisedBy: string;
   assignedTo: string | null;
   resolution: string | null;
+  metadata?: {
+    evidence?: string[];
+    notes?: string;
+  };
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  admin?: Admin;
 }
 
 interface DisputesTableProps {
@@ -299,7 +314,9 @@ export const DisputesTable: React.FC<DisputesTableProps> = ({
                   <span className="text-sm text-gray-600">{formatDate(dispute.createdAt)}</span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {dispute.assignedTo ? (
+                  {dispute.admin ? (
+                    <span className="text-sm text-gray-600">{dispute.admin.firstName} {dispute.admin.lastName}</span>
+                  ) : dispute.assignedTo ? (
                     <span className="text-sm text-gray-600">{dispute.assignedTo}</span>
                   ) : (
                     <span className="text-sm text-gray-400 italic">Unassigned</span>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '../components';
 import { fetchDisputeById, updateDisputeStatus, assignDispute, type UpdateDisputeStatusParams } from '../services/disputes';
 import { fetchErrandById, type Errand } from '../services/errands';
-import { fetchUserById, fetchUsers } from '../services/users';
+import { fetchUsers } from '../services/users';
 import type { User as UserType } from '../types/user';
 import type { Dispute } from '../components/DisputesTable';
 import {
@@ -24,7 +24,6 @@ import {
   Plus,
   UserPlus,
   Flag,
-  Phone,
   MapPin,
   ChevronDown,
   X,
@@ -47,6 +46,8 @@ interface AuditLogEntry {
 
 interface DisputeDetail extends Dispute {
   metadata?: {
+    evidence?: string[];
+    notes?: string;
     auditTrail?: AuditLogEntry[];
   };
 }
@@ -104,7 +105,6 @@ export const DisputeDetail: React.FC = () => {
   
   const [dispute, setDispute] = useState<DisputeDetail | null>(null);
   const [errand, setErrand] = useState<Errand | null>(null);
-  const [raisedByUser, setRaisedByUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -159,14 +159,7 @@ export const DisputeDetail: React.FC = () => {
         }
       }
       
-      if (disputeData.raisedBy) {
-        try {
-          const userData = await fetchUserById(disputeData.raisedBy);
-          setRaisedByUser(userData);
-        } catch (err) {
-          console.error('Error fetching user:', err);
-        }
-      }
+
     } catch (err) {
       setError('Failed to load dispute details');
       console.error('Error loading dispute:', err);
@@ -627,7 +620,9 @@ export const DisputeDetail: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-xs font-medium text-gray-500 block">Assigned To</label>
-                    {dispute.assignedTo ? (
+                    {dispute.admin ? (
+                      <span className="text-sm font-semibold text-gray-900">{dispute.admin.firstName} {dispute.admin.lastName}</span>
+                    ) : dispute.assignedTo ? (
                       <span className="text-sm font-semibold text-gray-900">{dispute.assignedTo}</span>
                     ) : (
                       <button className="text-sm font-semibold text-purple-600 hover:text-purple-700 flex items-center gap-1">
@@ -650,40 +645,6 @@ export const DisputeDetail: React.FC = () => {
               )}
             </div>
           </div>
-
-          {/* User Information Card - No colored border */}
-          {raisedByUser && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <UserCircle className="w-5 h-5 text-secondary" />
-                Raised By
-              </h2>
-              
-              <div className="flex items-start gap-4">
-                <div className="w-14 h-14 bg-gradient-to-br from-secondary to-secondary/70 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {getInitials(raisedByUser.firstName, raisedByUser.lastName)}
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 text-lg">
-                    {raisedByUser.firstName} {raisedByUser.lastName}
-                  </h3>
-                  <p className="text-sm text-gray-500">{raisedByUser.email}</p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                    <span className="flex items-center gap-1.5 text-gray-600 bg-gray-50 px-3 py-1 rounded-full">
-                      <Phone size={14} />
-                      {raisedByUser.phoneNumber}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${raisedByUser.isActive ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                      {raisedByUser.isActive ? 'Active Account' : 'Inactive Account'}
-                    </span>
-                  </div>
-                </div>
-                <button className="text-secondary hover:text-secondary/80 font-medium text-sm">
-                  View Profile →
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Enhanced Errand Details Card - No colored border */}
           {errand && (
@@ -828,27 +789,24 @@ export const DisputeDetail: React.FC = () => {
                   <div className="absolute left-[18px] top-3 bottom-3 w-[2px] bg-gradient-to-b from-secondary via-secondary/50 to-gray-200" />
                   
                   <div className="space-y-0">
-                    {dispute.metadata.auditTrail.map((log, index) => {
+                    {[...dispute.metadata.auditTrail].reverse().map((log, index) => {
                       const isFirst = index === 0;
                       const isLast = index === dispute.metadata!.auditTrail!.length - 1;
-                      const stepNumber = dispute.metadata!.auditTrail!.length - index;
                       
                       return (
                         <div key={index} className="relative flex gap-4 pb-6 last:pb-0">
                           {/* Progressive Stepper Circle */}
                           <div className="relative z-10 flex flex-col items-center">
-                            {/* Circle with step number */}
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shadow-md transition-all ${
+                            {/* Circle - smaller, no number */}
+                            <div className={`w-3 h-3 rounded-full shadow-sm transition-all ${
                               isFirst 
-                                ? 'bg-secondary text-white ring-4 ring-secondary/20' 
-                                : 'bg-white text-secondary border-2 border-secondary ring-4 ring-white'
-                            }`}>
-                              {stepNumber}
-                            </div>
+                                ? 'bg-secondary ring-2 ring-secondary/30' 
+                                : 'bg-gray-300'
+                            }`} />
                             
                             {/* Connector line to next step */}
                             {!isLast && (
-                              <div className="w-[2px] flex-1 bg-gradient-to-b from-secondary to-secondary/30 mt-1" />
+                              <div className="w-[2px] flex-1 bg-gradient-to-b from-gray-300 to-gray-200 mt-1" />
                             )}
                           </div>
                           

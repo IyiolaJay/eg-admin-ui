@@ -16,7 +16,8 @@ import {
   Gift,
   BarChart3,
 } from 'lucide-react';
-import errandgoLogo from '../../assets/errandgo-logo.svg';
+// import errandgoLogo from '../../assets/errandgo-logo.svg';
+import orbitaOneLogo from '../../assets/orbitaone.svg'
 
 interface NavItem {
   label: string;
@@ -120,7 +121,7 @@ export const Navbar: React.FC = () => {
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
           {!isCollapsed && (
             <Link to="/admin/dashboard" className="flex items-center">
-              <img src={errandgoLogo} alt="ErrandGo" className="h-8" />
+              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-[286px]" />
             </Link>
           )}
           <button
@@ -287,7 +288,7 @@ export const Navbar: React.FC = () => {
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link to="/admin/dashboard" className="flex items-center">
-              <img src={errandgoLogo} alt="ErrandGo" className="h-8" />
+              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-[286px]" />
             </Link>
           </div>
 
