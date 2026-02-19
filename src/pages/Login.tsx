@@ -70,18 +70,12 @@ export const Login: React.FC = () => {
 
         const errorMessage = errorMessages[response.error!] || response.message || 'An error occurred. Please try again.';
         setLoginError(errorMessage);
-        setToast({
-          message: errorMessage,
-          type: 'error',
-        });
+        // Don't show toast on login error - inline error is sufficient and persistent
       }
     } catch {
       const errorMessage = 'An unexpected error occurred. Please try again.';
       setLoginError(errorMessage);
-      setToast({
-        message: errorMessage,
-        type: 'error',
-      });
+      // Don't show toast on login error - inline error is sufficient and persistent
     } finally {
       setLoading(false);
     }
