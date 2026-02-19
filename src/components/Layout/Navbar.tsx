@@ -121,7 +121,7 @@ export const Navbar: React.FC = () => {
         <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
           {!isCollapsed && (
             <Link to="/admin/dashboard" className="flex items-center">
-              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-[286px]" />
+              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-10" />
             </Link>
           )}
           <button
@@ -288,7 +288,7 @@ export const Navbar: React.FC = () => {
               {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
             <Link to="/admin/dashboard" className="flex items-center">
-              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-[286px]" />
+              <img src={orbitaOneLogo} alt="OrbitaOne" className="h-10" />
             </Link>
           </div>
 
