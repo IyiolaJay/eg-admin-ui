@@ -1,11 +1,16 @@
 import apiClient, { extractApiErrorMessage } from '../api/client';
 import { ENDPOINTS } from '../api/config';
-import type { 
-  Reward, 
-  RewardsListResponse, 
+import type {
+  Reward,
+  RewardsListResponse,
   RewardFilters,
   RewardSortOption,
   RewardsListApiResponse,
+  CreateRewardRequest,
+  CreateRewardResponse,
+  ConditionFieldsResponse,
+  SaveConditionsRequest,
+  RewardConditionsData,
 } from '../types/reward';
 
 export interface FetchRewardsParams {
@@ -77,12 +82,94 @@ export async function fetchRewardById(rewardId: string): Promise<Reward> {
     const response = await apiClient.get<{ success: boolean; content: Reward; message: string }>(
       ENDPOINTS.REWARD_DETAILS(rewardId)
     );
-    
+
     if (response.data.success && response.data.content) {
       return response.data.content;
     }
-    
+
     throw new Error(response.data.message || 'Failed to fetch reward');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Create a new reward
+ */
+export async function createReward(rewardData: CreateRewardRequest): Promise<Reward> {
+  try {
+    const response = await apiClient.post<CreateRewardResponse>(
+      ENDPOINTS.REWARDS,
+      rewardData
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to create reward');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Deactivate a reward
+ */
+export async function deactivateReward(rewardId: string): Promise<Reward> {
+  try {
+    const response = await apiClient.patch<{ success: boolean; content: Reward; message: string }>(
+      ENDPOINTS.REWARD_DETAILS(rewardId),
+      { isActive: false }
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to deactivate reward');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Fetch available fields for condition building
+ */
+export async function fetchConditionFields(): Promise<ConditionFieldsResponse> {
+  try {
+    const response = await apiClient.get<{ success: boolean; content: ConditionFieldsResponse; message: string }>(
+      ENDPOINTS.REWARD_FIELDS
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to fetch condition fields');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Save conditions for a reward
+ */
+export async function saveRewardConditions(
+  rewardId: string,
+  conditions: SaveConditionsRequest
+): Promise<RewardConditionsData> {
+  try {
+    const response = await apiClient.post<{ success: boolean; content: RewardConditionsData; message: string }>(
+      ENDPOINTS.REWARD_CONDITIONS(rewardId),
+      conditions
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to save reward conditions');
   } catch (error) {
     throw new Error(extractApiErrorMessage(error));
   }

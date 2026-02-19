@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Button, Toast } from '../components';
 import { RewardsList } from '../components/RewardsList';
-import { ConfigureRewardModal } from '../components/ConfigureRewardModal';
 import { Plus, Eye, ArrowLeft } from 'lucide-react';
-import { fetchRewards } from '../services/rewards';
+import { fetchRewards, deactivateReward } from '../services/rewards';
 import type { Reward, RewardType } from '../types/reward';
 
 // View states
 type ViewState = 'landing' | 'list';
 
 export const RewardHub: React.FC = () => {
+  const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<ViewState>('landing');
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(false);
@@ -18,8 +19,10 @@ export const RewardHub: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedType, setSelectedType] = useState<RewardType | 'ALL'>('ALL');
-  const [showConfigureModal, setShowConfigureModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+  const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [rewardToDeactivate, setRewardToDeactivate] = useState<Reward | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
 
   const loadRewards = async () => {
     if (currentView !== 'list') return;
@@ -63,9 +66,37 @@ export const RewardHub: React.FC = () => {
     setCurrentPage(1); // Reset to first page when filter changes
   };
 
-  const handleRewardClick = (reward: Reward) => {
-    // TODO: Show reward details modal
-    console.log('Reward clicked:', reward);
+  const handleCreateReward = () => {
+    navigate('/admin/reward-hub/create');
+  };
+
+  const handleDeactivateClick = (reward: Reward) => {
+    setRewardToDeactivate(reward);
+    setShowDeactivateModal(true);
+  };
+
+  const handleDeactivateConfirm = async () => {
+    if (!rewardToDeactivate) return;
+    
+    setDeactivating(true);
+    try {
+      await deactivateReward(rewardToDeactivate.id);
+      setToast({
+        message: `"${rewardToDeactivate.rewardName}" has been deactivated`,
+        type: 'success',
+      });
+      setShowDeactivateModal(false);
+      setRewardToDeactivate(null);
+      // Refresh the rewards list
+      loadRewards();
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to deactivate reward',
+        type: 'error',
+      });
+    } finally {
+      setDeactivating(false);
+    }
   };
 
   // Landing View - Action Cards
@@ -81,7 +112,7 @@ export const RewardHub: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
           {/* Configure New Reward Card */}
           <div
-            onClick={() => setShowConfigureModal(true)}
+            onClick={handleCreateReward}
             className="group bg-white rounded-2xl shadow-sm border-2 border-gray-200 p-8 hover:border-secondary hover:shadow-lg transition-all cursor-pointer"
           >
             <div className="flex flex-col h-full">
@@ -124,14 +155,6 @@ export const RewardHub: React.FC = () => {
           </div>
         </div>
 
-        {/* Configure Modal */}
-        {showConfigureModal && (
-          <ConfigureRewardModal
-            isOpen={showConfigureModal}
-            onClose={() => setShowConfigureModal(false)}
-          />
-        )}
-
         {/* Toast */}
         {toast && (
           <Toast
@@ -165,7 +188,7 @@ export const RewardHub: React.FC = () => {
         
         <Button
           variant="primary"
-          onClick={() => setShowConfigureModal(true)}
+          onClick={handleCreateReward}
         >
           <span className="flex items-center gap-2 whitespace-nowrap">
             <Plus size={20} />
@@ -185,15 +208,55 @@ export const RewardHub: React.FC = () => {
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         onTypeChange={handleTypeChange}
-        onRewardClick={handleRewardClick}
+        onDeactivateClick={handleDeactivateClick}
       />
 
-      {/* Configure Modal */}
-      {showConfigureModal && (
-        <ConfigureRewardModal
-          isOpen={showConfigureModal}
-          onClose={() => setShowConfigureModal(false)}
-        />
+      {/* Deactivate Modal */}
+      {showDeactivateModal && rewardToDeactivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !deactivating && setShowDeactivateModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Deactivate Reward</h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to deactivate <strong>"{rewardToDeactivate.rewardName}"</strong>? 
+                This will stop users from being able to earn this reward.
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeactivateModal(false)}
+                  disabled={deactivating}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeactivateConfirm}
+                  disabled={deactivating}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {deactivating ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                      Deactivating...
+                    </>
+                  ) : (
+                    'Deactivate'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast */}

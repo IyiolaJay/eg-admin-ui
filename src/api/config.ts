@@ -73,6 +73,8 @@ export const ENDPOINTS = {
   REWARDS: '/rewards',
   REWARDS_ACTIVE: '/rewards/get-active-rewards',
   REWARD_DETAILS: (id: string) => `/rewards/${id}`,
+  REWARD_CONDITIONS: (id: string) => `/rewards/conditions/${id}`,
+  REWARD_FIELDS: '/rewards/fields',
   
   // Failed Operations
   FAILED_OPERATIONS: '/operations/failed',

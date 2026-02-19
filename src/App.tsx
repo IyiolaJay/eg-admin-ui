@@ -8,6 +8,9 @@ import { FailedOperations } from './pages/FailedOperations';
 import { Users } from './pages/Users';
 import { Agents } from './pages/Agents';
 import { RewardHub } from './pages/RewardHub';
+import { CreateReward } from './pages/CreateReward';
+import { RewardConditions } from './pages/RewardConditions';
+import { RewardDetail } from './pages/RewardDetail';
 
 function App() {
   return (
@@ -20,6 +23,9 @@ function App() {
         <Route path="/admin/disputes/:id" element={<DisputeDetail />} />
         <Route path="/admin/agents" element={<Agents />} />
         <Route path="/admin/reward-hub" element={<RewardHub />} />
+        <Route path="/admin/reward-hub/create" element={<CreateReward />} />
+        <Route path="/admin/reward-hub/rewards/:rewardId" element={<RewardDetail />} />
+        <Route path="/admin/reward-hub/rewards/:rewardId/conditions" element={<RewardConditions />} />
         <Route path="/admin/failed-operations" element={<FailedOperations />} />
         <Route path="/admin/users" element={<Users />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -28,7 +28,6 @@ export { CreateUserModal } from './CreateUserModal';
 
 // Rewards
 export { RewardsList } from './RewardsList';
-export { ConfigureRewardModal } from './ConfigureRewardModal';
 
 // Agents
 export { AgentsList } from './AgentsList';

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Gift, Calendar, User, Users, Briefcase, ChevronRight, Tag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Gift, Calendar, User, Users, Briefcase, ChevronRight, Tag, Settings, Power, Eye } from 'lucide-react';
 import { Pagination } from './Pagination';
 import type { Reward, RewardType, RewardClass } from '../types/reward';
 
@@ -14,7 +15,7 @@ interface RewardsListProps {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onTypeChange: (type: RewardType | 'ALL') => void;
-  onRewardClick?: (reward: Reward) => void;
+  onDeactivateClick?: (reward: Reward) => void;
 }
 
 const REWARD_TYPES: { value: RewardType | 'ALL'; label: string }[] = [
@@ -36,8 +37,10 @@ export const RewardsList: React.FC<RewardsListProps> = ({
   onPageChange,
   onPageSizeChange,
   onTypeChange,
-  onRewardClick,
+  onDeactivateClick,
 }) => {
+  const navigate = useNavigate();
+
   const getRewardTypeColor = (type: RewardType) => {
     const colors: Record<RewardType, string> = {
       BONUS: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -97,6 +100,14 @@ export const RewardsList: React.FC<RewardsListProps> = ({
     });
   };
 
+  const handleViewDetails = (rewardId: string) => {
+    navigate(`/admin/reward-hub/rewards/${rewardId}`);
+  };
+
+  const handleConfigureConditions = (rewardId: string) => {
+    navigate(`/admin/reward-hub/rewards/${rewardId}/conditions`);
+  };
+
   const selectedTypeLabel = REWARD_TYPES.find(t => t.value === selectedType)?.label || 'All Categories';
 
   if (loading) {
@@ -120,18 +131,56 @@ export const RewardsList: React.FC<RewardsListProps> = ({
 
   if (rewards.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Gift size={32} className="text-gray-400" />
+      <div className="space-y-6">
+        {/* Filter Bar - Always show */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Filter by Category</h3>
+              <div className="flex flex-wrap gap-2">
+                {REWARD_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => onTypeChange(type.value)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      selectedType === type.value
+                        ? 'bg-secondary text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              Showing 0 of {totalItems} rewards
+            </div>
+          </div>
         </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          {selectedType === 'ALL' ? 'No Rewards Found' : `No ${selectedTypeLabel} Available`}
-        </h3>
-        <p className="text-gray-600 max-w-md mx-auto">
-          {selectedType === 'ALL' 
-            ? 'There are no active rewards in the system at the moment.'
-            : `There are no ${selectedTypeLabel.toLowerCase()} rewards available at the moment.`}
-        </p>
+
+        {/* Empty State */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Gift size={32} className="text-gray-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            {selectedType === 'ALL' ? 'No Rewards Found' : `No ${selectedTypeLabel} Available`}
+          </h3>
+          <p className="text-gray-600 max-w-md mx-auto mb-6">
+            {selectedType === 'ALL' 
+              ? 'There are no active rewards in the system at the moment.'
+              : `There are no ${selectedTypeLabel.toLowerCase()} rewards available at the moment.`}
+          </p>
+          {selectedType !== 'ALL' && (
+            <button
+              onClick={() => onTypeChange('ALL')}
+              className="text-secondary hover:text-secondary/80 font-medium"
+            >
+              View all rewards →
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -170,8 +219,7 @@ export const RewardsList: React.FC<RewardsListProps> = ({
         {rewards.map((reward) => (
           <div
             key={reward.id}
-            onClick={() => onRewardClick?.(reward)}
-            className="group bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md hover:border-secondary/30 transition-all cursor-pointer"
+            className="group bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all"
           >
             <div className="flex items-start gap-5">
               {/* Icon */}
@@ -182,7 +230,10 @@ export const RewardsList: React.FC<RewardsListProps> = ({
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => handleViewDetails(reward.id)}
+                  >
                     {/* Title and Type Badge */}
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-lg font-semibold text-gray-900 group-hover:text-secondary transition-colors">
@@ -191,6 +242,15 @@ export const RewardsList: React.FC<RewardsListProps> = ({
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getRewardTypeColor(reward.rewardType)}`}>
                         {reward.rewardType}
                       </span>
+                      {reward.isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                          Inactive
+                        </span>
+                      )}
                     </div>
                     
                     {/* Description */}
@@ -223,9 +283,42 @@ export const RewardsList: React.FC<RewardsListProps> = ({
                     </div>
                   </div>
 
-                  {/* Arrow Indicator */}
-                  <div className="flex-shrink-0 text-gray-400 group-hover:text-secondary transition-colors">
-                    <ChevronRight size={24} />
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleViewDetails(reward.id)}
+                      className="p-2 text-gray-500 hover:text-secondary hover:bg-secondary/10 rounded-lg transition-colors"
+                      title="View Details"
+                    >
+                      <Eye size={20} />
+                    </button>
+                    
+                    {reward.isActive && (
+                      <>
+                        <button
+                          onClick={() => handleConfigureConditions(reward.id)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title={reward.metadata?.conditions ? 'Edit Conditions' : 'Configure Conditions'}
+                        >
+                          <Settings size={20} />
+                        </button>
+                        
+                        <button
+                          onClick={() => onDeactivateClick?.(reward)}
+                          className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Deactivate Reward"
+                        >
+                          <Power size={20} />
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => handleViewDetails(reward.id)}
+                      className="p-2 text-gray-400 group-hover:text-secondary transition-colors"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
                   </div>
                 </div>
               </div>
