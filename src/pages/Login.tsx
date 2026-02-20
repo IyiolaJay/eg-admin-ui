@@ -106,7 +106,7 @@ export const Login: React.FC = () => {
         {/* Value Proposition */}
         <div className="relative z-10 space-y-6">
           <h1 className="text-4xl font-bold text-white leading-tight">
-            Admin Portal
+            Admin & Management Portal
             <br />
           </h1>
           <p className="text-lg text-white/90 max-w-md">
