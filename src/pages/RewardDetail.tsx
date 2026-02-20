@@ -133,6 +133,55 @@ export const RewardDetail: React.FC = () => {
     });
   };
 
+  const formatConditionLogic = (condition: any): string => {
+    const logic = condition.logic;
+    if (!logic) return 'Unknown condition';
+
+    const parts: string[] = [];
+
+    // Handle simple logic (field, operator, value)
+    if (logic.field && logic.operator) {
+      const fieldName = logic.field.split('.')[1] || logic.field;
+      const operator = getOperatorLabel(logic.operator);
+      const value = logic.value;
+      return `${fieldName} ${operator} ${value}`;
+    }
+
+    // Handle 'and' array
+    if (logic.and && Array.isArray(logic.and)) {
+      for (const rule of logic.and) {
+        const fieldName = rule.field.split('.')[1] || rule.field;
+        const operator = getOperatorLabel(rule.operator);
+        parts.push(`${fieldName} ${operator} ${rule.value}`);
+      }
+      return parts.join(' AND ');
+    }
+
+    // Handle 'or' array
+    if (logic.or && Array.isArray(logic.or)) {
+      for (const rule of logic.or) {
+        const fieldName = rule.field.split('.')[1] || rule.field;
+        const operator = getOperatorLabel(rule.operator);
+        parts.push(`${fieldName} ${operator} ${rule.value}`);
+      }
+      return parts.join(' OR ');
+    }
+
+    return 'Unknown condition';
+  };
+
+  const getOperatorLabel = (operator: string): string => {
+    const operators: Record<string, string> = {
+      '==': '=',
+      '!=': '≠',
+      '>': '>',
+      '<': '<',
+      '>=': '≥',
+      '<=': '≤',
+    };
+    return operators[operator] || operator;
+  };
+
   if (loading) {
     return (
       <DashboardLayout>
@@ -209,7 +258,7 @@ export const RewardDetail: React.FC = () => {
                   className="flex items-center gap-2"
                 >
                   <Settings size={18} />
-                  {reward.metadata?.conditions ? 'Edit Conditions' : 'Configure Conditions'}
+                  {reward.conditions ? 'Edit Conditions' : 'Configure Conditions'}
                 </Button>
                 <Button
                   variant="danger"
@@ -269,16 +318,21 @@ export const RewardDetail: React.FC = () => {
                   onClick={handleConfigureConditions}
                   className="text-sm py-2 px-4"
                 >
-                  {reward.metadata?.conditions ? 'Edit Conditions' : 'Add Conditions'}
+                  {reward.conditions ? 'Edit Conditions' : 'Add Conditions'}
                 </Button>
               )}
             </div>
             
-            {reward.metadata?.conditions ? (
+            {reward.conditions && reward.conditions.length > 0 ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  This reward has {reward.metadata.conditions.length} condition(s) configured.
-                </p>
+                <p className="text-sm font-medium text-blue-800 mb-2">Configured Conditions:</p>
+                <div className="space-y-2">
+                  {reward.conditions.map((cond) => (
+                    <div key={cond.id} className="text-sm text-blue-900 bg-white rounded-lg p-3 border border-blue-100 font-mono">
+                      {formatConditionLogic(cond)}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
@@ -351,10 +405,10 @@ export const RewardDetail: React.FC = () => {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">
-                      {reward.metadata?.conditions ? 'Edit Conditions' : 'Configure Conditions'}
+                      {reward.conditions ? 'Edit Conditions' : 'Configure Conditions'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {reward.metadata?.conditions ? 'Modify existing conditions' : 'Set eligibility criteria'}
+                      {reward.conditions ? 'Modify existing conditions' : 'Set eligibility criteria'}
                     </p>
                   </div>
                 </button>

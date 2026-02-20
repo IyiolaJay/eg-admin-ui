@@ -4,13 +4,27 @@ import type { ApiResponse, PaginationMeta } from './api';
 export type RewardType = 'BONUS' | 'REFERRAL' | 'DISCOUNT' | 'CASHBACK' | 'LOYALTY';
 export type RewardClass = 'RUNNER' | 'CREATOR' | 'ALL';
 
-// Condition data
+// Condition data from API
 export interface RewardCondition {
   id: string;
-  field: string;
-  operator: string;
-  value: string;
-  value2?: string;
+  rewardId: string;
+  logic: {
+    field?: string;
+    operator?: string;
+    value?: string | number | boolean;
+    and?: Array<{
+      field: string;
+      operator: string;
+      value: string | number | boolean;
+    }>;
+    or?: Array<{
+      field: string;
+      operator: string;
+      value: string | number | boolean;
+    }>;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Reward data from API
@@ -24,9 +38,7 @@ export interface Reward {
   rewardClass: RewardClass;
   createdAt: string;
   updatedAt: string;
-  metadata?: {
-    conditions?: RewardCondition[];
-  };
+  conditions?: RewardCondition[];
 }
 
 // API Response content structure

@@ -298,7 +298,7 @@ export const RewardsList: React.FC<RewardsListProps> = ({
                         <button
                           onClick={() => handleConfigureConditions(reward.id)}
                           className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title={reward.metadata?.conditions ? 'Edit Conditions' : 'Configure Conditions'}
+                          title={reward.conditions && reward.conditions.length > 0 ? 'Edit Conditions' : 'Configure Conditions'}
                         >
                           <Settings size={20} />
                         </button>

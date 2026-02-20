@@ -102,9 +102,9 @@ export const RewardConditions: React.FC = () => {
       setEntities(fieldsData.entities);
       
       // If reward has existing conditions, parse them into UI format
-      if (rewardData.metadata?.conditions && rewardData.metadata.conditions.length > 0) {
+      if (rewardData.conditions && rewardData.conditions.length > 0) {
         // Parse existing conditions from API format to UI format
-        const parsedGroups = parseLogicToUIGroups(rewardData.metadata.conditions);
+        const parsedGroups = parseLogicToUIGroups(rewardData.conditions);
         if (parsedGroups.length > 0) {
           setConditionGroups(parsedGroups);
         }
@@ -118,9 +118,33 @@ export const RewardConditions: React.FC = () => {
 
   // Parse API condition logic to UI groups
   const parseLogicToUIGroups = (conditions: any[]): UIConditionGroup[] => {
-    // For now, create a single group with all conditions
-    // In a more complex implementation, we'd handle nested logic
-    const uiConditions: UICondition[] = conditions.map((cond, index) => ({
+    // Extract conditions from the logic object
+    const extractedConditions: any[] = [];
+    
+    for (const cond of conditions) {
+      const logic = cond.logic;
+      if (!logic) continue;
+      
+      // Check if logic has simple structure (field, operator, value)
+      if (logic.field && logic.operator) {
+        extractedConditions.push({
+          field: logic.field,
+          operator: logic.operator,
+          value: logic.value,
+        });
+      }
+      // Check if logic has 'and' array
+      else if (logic.and && Array.isArray(logic.and)) {
+        extractedConditions.push(...logic.and);
+      }
+      // Check if logic has 'or' array
+      else if (logic.or && Array.isArray(logic.or)) {
+        extractedConditions.push(...logic.or);
+      }
+    }
+
+    // Convert to UI conditions
+    const uiConditions: UICondition[] = extractedConditions.map((cond, index) => ({
       id: `cond-${index}`,
       entity: cond.field?.split('.')[0] || 'errand',
       field: cond.field?.split('.')[1] || cond.field,
