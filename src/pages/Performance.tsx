@@ -251,7 +251,7 @@ export const Performance: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4 text-blue-600" />
-              <span className="text-sm text-gray-500">New Signups</span>
+              <span className="text-sm text-gray-500">Signups</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{aggregateData.totalNewSignup}</p>
           </div>
