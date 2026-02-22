@@ -74,7 +74,8 @@ export const ENDPOINTS = {
   REWARDS_ACTIVE: '/rewards/get-active-rewards',
   REWARDS_ALL: '/rewards/all',
   REWARD_DETAILS: (id: string) => `/rewards/${id}`,
-  REWARD_CONDITIONS: (id: string) => `/rewards/conditions/${id}`,
+  REWARD_CONDITIONS: (rewardId: string) => `/rewards/conditions/${rewardId}`,
+  REWARD_CONDITIONS_BATCH_DELETE: '/rewards/conditions/batch-delete',
   REWARD_FIELDS: '/rewards/fields',
   
   // Failed Operations

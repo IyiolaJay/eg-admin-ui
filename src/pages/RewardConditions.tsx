@@ -1,30 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Button, Toast } from '../components';
-import { fetchRewardById, fetchConditionFields, saveRewardConditions } from '../services/rewards';
+import { fetchRewardById, fetchConditionFields, updateRewardConditions, deleteRewardConditions } from '../services/rewards';
 import type { 
   Reward, 
   ConditionEntity, 
   ConditionLogic, 
   ConditionRule,
   LogicOperator,
-  ComparisonOperator 
+  ComparisonOperator,
+  RewardCondition,
+  UpdateConditionItem
 } from '../types/reward';
 import {
   ArrowLeft,
   Plus,
   Trash2,
-  GripVertical,
-  ChevronDown,
   CheckCircle,
   AlertCircle,
   Save,
   Settings,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 
-// Frontend condition structure
-interface UICondition {
+// Frontend rule structure (a single condition within a condition item)
+interface UIRule {
   id: string;
   entity: string;
   field: string;
@@ -32,10 +33,12 @@ interface UICondition {
   value: string;
 }
 
-interface UIConditionGroup {
+// Each condition item represents one condition from the API conditions array
+interface UIConditionItem {
   id: string;
+  originalId?: string; // Original condition ID from API (undefined if new)
   operator: LogicOperator;
-  conditions: UICondition[];
+  rules: UIRule[];
 }
 
 // Map field types to available operators
@@ -72,14 +75,9 @@ export const RewardConditions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   
-  // Condition groups state
-  const [conditionGroups, setConditionGroups] = useState<UIConditionGroup[]>([
-    {
-      id: 'group-1',
-      operator: 'and',
-      conditions: [],
-    },
-  ]);
+  // Condition items state - each item represents one condition from the API array
+  const [conditionItems, setConditionItems] = useState<UIConditionItem[]>([]);
+  const [originalConditionIds, setOriginalConditionIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (rewardId) {
@@ -92,7 +90,6 @@ export const RewardConditions: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch both reward and condition fields in parallel
       const [rewardData, fieldsData] = await Promise.all([
         fetchRewardById(rewardId!),
         fetchConditionFields(),
@@ -101,13 +98,13 @@ export const RewardConditions: React.FC = () => {
       setReward(rewardData);
       setEntities(fieldsData.entities);
       
-      // If reward has existing conditions, parse them into UI format
+      // Parse existing conditions
       if (rewardData.conditions && rewardData.conditions.length > 0) {
-        // Parse existing conditions from API format to UI format
-        const parsedGroups = parseLogicToUIGroups(rewardData.conditions);
-        if (parsedGroups.length > 0) {
-          setConditionGroups(parsedGroups);
-        }
+        const parsed = parseConditionsToUI(rewardData.conditions);
+        setConditionItems(parsed);
+        setOriginalConditionIds(new Set(rewardData.conditions.map(c => c.id)));
+      } else {
+        setConditionItems([createEmptyConditionItem()]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -116,90 +113,58 @@ export const RewardConditions: React.FC = () => {
     }
   };
 
-  // Parse API condition logic to UI groups
-  const parseLogicToUIGroups = (conditions: any[]): UIConditionGroup[] => {
-    // Extract conditions from the logic object
-    const extractedConditions: any[] = [];
-    
-    for (const cond of conditions) {
-      const logic = cond.logic;
-      if (!logic) continue;
+  const createEmptyConditionItem = (): UIConditionItem => ({
+    id: `new-${Date.now()}`,
+    operator: 'and',
+    rules: [],
+  });
+
+  const createEmptyRule = (): UIRule => {
+    const defaultEntity = entities[0];
+    const defaultField = defaultEntity?.fields[0];
+    return {
+      id: `rule-${Date.now()}`,
+      entity: defaultEntity?.name || 'errand',
+      field: defaultField?.name || 'status',
+      operator: '==',
+      value: '',
+    };
+  };
+
+  // Parse API conditions to UI format
+  const parseConditionsToUI = (conditions: RewardCondition[]): UIConditionItem[] => {
+    return conditions.map((condition, index) => {
+      const logic = condition.logic;
+      let extractedRules: { field: string; operator: string; value: any }[] = [];
+      let operator: LogicOperator = 'and';
       
-      // Check if logic has simple structure (field, operator, value)
-      if (logic.field && logic.operator) {
-        extractedConditions.push({
-          field: logic.field,
-          operator: logic.operator,
-          value: logic.value,
-        });
+      if (logic) {
+        if (logic.and && Array.isArray(logic.and)) {
+          extractedRules = logic.and.map(r => ({ field: r.field || '', operator: r.operator || '==', value: r.value }));
+          operator = 'and';
+        } else if (logic.or && Array.isArray(logic.or)) {
+          extractedRules = logic.or.map(r => ({ field: r.field || '', operator: r.operator || '==', value: r.value }));
+          operator = 'or';
+        } else if (logic.field && logic.operator) {
+          extractedRules = [{ field: logic.field, operator: logic.operator, value: logic.value }];
+        }
       }
-      // Check if logic has 'and' array
-      else if (logic.and && Array.isArray(logic.and)) {
-        extractedConditions.push(...logic.and);
-      }
-      // Check if logic has 'or' array
-      else if (logic.or && Array.isArray(logic.or)) {
-        extractedConditions.push(...logic.or);
-      }
-    }
 
-    // Convert to UI conditions
-    const uiConditions: UICondition[] = extractedConditions.map((cond, index) => ({
-      id: `cond-${index}`,
-      entity: cond.field?.split('.')[0] || 'errand',
-      field: cond.field?.split('.')[1] || cond.field,
-      operator: cond.operator || '==',
-      value: String(cond.value || ''),
-    }));
-
-    return [{
-      id: 'group-existing',
-      operator: 'and',
-      conditions: uiConditions,
-    }];
-  };
-
-  // Build API logic object from UI groups
-  const buildLogicObject = (): ConditionLogic => {
-    if (conditionGroups.length === 0) {
-      return { and: [] };
-    }
-
-    if (conditionGroups.length === 1) {
-      const group = conditionGroups[0];
-      const rules: ConditionRule[] = group.conditions.map((cond) => ({
-        field: `${cond.entity}.${cond.field}`,
-        operator: cond.operator,
-        value: convertValue(cond.value, getFieldType(cond.entity, cond.field)),
+      const uiRules: UIRule[] = extractedRules.map((rule) => ({
+        id: `rule-${index}-${Math.random()}`,
+        entity: rule.field?.split('.')[0] || 'errand',
+        field: rule.field?.split('.')[1] || rule.field || 'status',
+        operator: rule.operator as ComparisonOperator,
+        value: String(rule.value || ''),
       }));
 
-      return { [group.operator]: rules };
-    }
-
-    // Multiple groups - wrap in outer logic
-    const outerOperator: LogicOperator = 'and'; // Groups are always combined with AND
-    const groupLogics: (ConditionRule | ConditionLogic)[] = conditionGroups.map((group) => {
-      const rules: ConditionRule[] = group.conditions.map((cond) => ({
-        field: `${cond.entity}.${cond.field}`,
-        operator: cond.operator,
-        value: convertValue(cond.value, getFieldType(cond.entity, cond.field)),
-      }));
-
-      return { [group.operator]: rules } as ConditionLogic;
+      return {
+        id: `condition-${index}`,
+        originalId: condition.id,
+        operator,
+        rules: uiRules,
+      };
     });
-
-    return { [outerOperator]: groupLogics };
-  };
-
-  const convertValue = (value: string, fieldType: string): string | number | boolean => {
-    if (fieldType === 'boolean') {
-      return value.toLowerCase() === 'true';
-    }
-    if (fieldType === 'number') {
-      const num = parseFloat(value);
-      return isNaN(num) ? 0 : num;
-    }
-    return value;
   };
 
   const getFieldType = (entityName: string, fieldName: string): string => {
@@ -214,118 +179,106 @@ export const RewardConditions: React.FC = () => {
     return field?.values;
   };
 
-  const addCondition = (groupId: string) => {
-    // Get default entity and field
-    const defaultEntity = entities[0];
-    const defaultField = defaultEntity?.fields[0];
-
-    setConditionGroups((prev) =>
-      prev.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              conditions: [
-                ...group.conditions,
-                {
-                  id: `cond-${Date.now()}`,
-                  entity: defaultEntity?.name || 'errand',
-                  field: defaultField?.name || 'status',
-                  operator: '==',
-                  value: '',
-                },
-              ],
-            }
-          : group
-      )
-    );
-  };
-
-  const removeCondition = (groupId: string, conditionId: string) => {
-    setConditionGroups((prev) =>
-      prev.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              conditions: group.conditions.filter((c) => c.id !== conditionId),
-            }
-          : group
-      )
-    );
-  };
-
-  const updateCondition = (groupId: string, conditionId: string, updates: Partial<UICondition>) => {
-    setConditionGroups((prev) =>
-      prev.map((group) =>
-        group.id === groupId
-          ? {
-              ...group,
-              conditions: group.conditions.map((cond) => {
-                if (cond.id !== conditionId) return cond;
-                
-                // If entity changes, reset field to first available
-                if (updates.entity && updates.entity !== cond.entity) {
-                  const entity = entities.find((e) => e.name === updates.entity);
-                  const firstField = entity?.fields[0];
-                  return {
-                    ...cond,
-                    ...updates,
-                    field: firstField?.name || '',
-                    value: '',
-                  };
-                }
-                
-                // If field changes, reset value
-                if (updates.field && updates.field !== cond.field) {
-                  return {
-                    ...cond,
-                    ...updates,
-                    value: '',
-                  };
-                }
-                
-                return { ...cond, ...updates };
-              }),
-            }
-          : group
-      )
-    );
-  };
-
-  const updateGroupOperator = (groupId: string, operator: LogicOperator) => {
-    setConditionGroups((prev) =>
-      prev.map((group) => (group.id === groupId ? { ...group, operator } : group))
-    );
-  };
-
-  const addGroup = () => {
-    setConditionGroups((prev) => [
-      ...prev,
-      {
-        id: `group-${Date.now()}`,
-        operator: 'and',
-        conditions: [],
-      },
-    ]);
-  };
-
-  const removeGroup = (groupId: string) => {
-    setConditionGroups((prev) => prev.filter((g) => g.id !== groupId));
-  };
-
   const getAvailableOperators = (entityName: string, fieldName: string) => {
     const fieldType = getFieldType(entityName, fieldName);
     return OPERATORS_BY_TYPE[fieldType] || OPERATORS_BY_TYPE.string;
   };
 
+  const convertValue = (value: string, fieldType: string): string | number | boolean => {
+    if (fieldType === 'boolean') {
+      return value.toLowerCase() === 'true';
+    }
+    if (fieldType === 'number') {
+      const num = parseFloat(value);
+      return isNaN(num) ? 0 : num;
+    }
+    return value;
+  };
+
+  // Add a new condition item
+  const addConditionItem = () => {
+    setConditionItems(prev => [...prev, createEmptyConditionItem()]);
+  };
+
+  // Remove a condition item
+  const removeConditionItem = (itemId: string) => {
+    setConditionItems(prev => prev.filter(item => item.id !== itemId));
+  };
+
+  // Add a rule to a condition item
+  const addRule = (itemId: string) => {
+    setConditionItems(prev =>
+      prev.map(item =>
+        item.id === itemId
+          ? { ...item, rules: [...item.rules, createEmptyRule()] }
+          : item
+      )
+    );
+  };
+
+  // Remove a rule from a condition item
+  const removeRule = (itemId: string, ruleId: string) => {
+    setConditionItems(prev =>
+      prev.map(item =>
+        item.id === itemId
+          ? { ...item, rules: item.rules.filter(r => r.id !== ruleId) }
+          : item
+      )
+    );
+  };
+
+  // Update a rule
+  const updateRule = (itemId: string, ruleId: string, updates: Partial<UIRule>) => {
+    setConditionItems(prev =>
+      prev.map(item => {
+        if (item.id !== itemId) return item;
+        
+        return {
+          ...item,
+          rules: item.rules.map(rule => {
+            if (rule.id !== ruleId) return rule;
+            
+            // If entity changes, reset field and value
+            if (updates.entity && updates.entity !== rule.entity) {
+              const entity = entities.find(e => e.name === updates.entity);
+              const firstField = entity?.fields[0];
+              return {
+                ...rule,
+                ...updates,
+                field: firstField?.name || '',
+                value: '',
+              };
+            }
+            
+            // If field changes, reset value
+            if (updates.field && updates.field !== rule.field) {
+              return { ...rule, ...updates, value: '' };
+            }
+            
+            return { ...rule, ...updates };
+          }),
+        };
+      })
+    );
+  };
+
+  // Update condition item operator
+  const updateItemOperator = (itemId: string, operator: LogicOperator) => {
+    setConditionItems(prev =>
+      prev.map(item => (item.id === itemId ? { ...item, operator } : item))
+    );
+  };
+
+  const formatFieldName = (name: string): string => {
+    return name.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+  };
+
   const handleSave = async () => {
-    // Validate all conditions have values
-    for (const group of conditionGroups) {
-      for (const condition of group.conditions) {
-        if (!condition.value.trim()) {
-          setToast({
-            message: 'Please fill in all condition values',
-            type: 'error',
-          });
+    // Validate all rules have values
+    for (const item of conditionItems) {
+      for (const rule of item.rules) {
+        if (!rule.value.trim()) {
+          setToast({ message: 'Please fill in all condition values', type: 'error' });
           return;
         }
       }
@@ -333,16 +286,50 @@ export const RewardConditions: React.FC = () => {
 
     setSaving(true);
     try {
-      const logic = buildLogicObject();
-      
-      await saveRewardConditions(rewardId!, { logic });
-      
-      setToast({
-        message: 'Reward conditions saved successfully!',
-        type: 'success',
+      // Delete conditions that were removed
+      const currentConditionIds = new Set(conditionItems.map(i => i.originalId).filter(Boolean));
+      const idsToDelete: string[] = [];
+      for (const originalId of originalConditionIds) {
+        if (!currentConditionIds.has(originalId)) {
+          idsToDelete.push(originalId!);
+        }
+      }
+
+      // Only call delete if there are conditions to delete
+      if (idsToDelete.length > 0) {
+        await deleteRewardConditions(idsToDelete);
+      }
+
+      // Build conditions array for update
+      const conditions: UpdateConditionItem[] = conditionItems.map(item => {
+        const rules: ConditionRule[] = item.rules.map(rule => ({
+          field: `${rule.entity}.${rule.field}`,
+          operator: rule.operator,
+          value: convertValue(rule.value, getFieldType(rule.entity, rule.field)),
+        }));
+        const logic: ConditionLogic = { [item.operator]: rules };
+        
+        return {
+          ...(item.originalId && { id: item.originalId }),
+          logic,
+        };
       });
+
+      // Only call update if there are conditions to save
+      if (conditions.length > 0) {
+        const result = await updateRewardConditions(rewardId!, { conditions });
+        
+        setToast({ 
+          message: `Conditions saved: ${result.updated} updated, ${result.created} created`, 
+          type: 'success' 
+        });
+      } else {
+        setToast({ 
+          message: 'No conditions to save', 
+          type: 'success' 
+        });
+      }
       
-      // Navigate back to reward detail
       setTimeout(() => {
         navigate(`/admin/reward-hub/rewards/${rewardId}`);
       }, 1500);
@@ -354,12 +341,6 @@ export const RewardConditions: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  };
-
-  const formatFieldName = (name: string): string => {
-    return name
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, (str) => str.toUpperCase());
   };
 
   if (loading) {
@@ -392,7 +373,6 @@ export const RewardConditions: React.FC = () => {
 
   return (
     <DashboardLayout>
-      {/* Header */}
       <div className="mb-8">
         <button
           onClick={() => navigate(`/admin/reward-hub/rewards/${rewardId}`)}
@@ -411,7 +391,6 @@ export const RewardConditions: React.FC = () => {
         </div>
       </div>
 
-      {/* Progress Steps */}
       <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -430,7 +409,6 @@ export const RewardConditions: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -438,228 +416,185 @@ export const RewardConditions: React.FC = () => {
         </div>
       )}
 
-      {/* Condition Builder */}
       <div className="space-y-6">
-        {conditionGroups.map((group, groupIndex) => (
-          <div
-            key={group.id}
-            className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
-          >
-            {/* Group Header */}
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-gray-600">Group {groupIndex + 1}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Match</span>
-                  <select
-                    value={group.operator}
-                    onChange={(e) => updateGroupOperator(group.id, e.target.value as LogicOperator)}
-                    className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                  >
-                    <option value="and">ALL</option>
-                    <option value="or">ANY</option>
-                  </select>
-                  <span className="text-sm text-gray-500">of the following conditions:</span>
+        {conditionItems.map((item, itemIndex) => {
+          const isExisting = !!item.originalId;
+          
+          return (
+            <div key={item.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    {isExisting ? (
+                      <Pencil size={16} className="text-blue-500" />
+                    ) : (
+                      <Plus size={16} className="text-green-500" />
+                    )}
+                    <span className="text-sm font-medium text-gray-600">
+                      Condition {itemIndex + 1} {isExisting ? '(Existing)' : '(New)'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Match</span>
+                    <select
+                      value={item.operator}
+                      onChange={(e) => updateItemOperator(item.id, e.target.value as LogicOperator)}
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                    >
+                      <option value="and">ALL</option>
+                      <option value="or">ANY</option>
+                    </select>
+                    <span className="text-sm text-gray-500">of the following:</span>
+                  </div>
                 </div>
-              </div>
-              {conditionGroups.length > 1 && (
                 <button
-                  onClick={() => removeGroup(group.id)}
+                  onClick={() => removeConditionItem(item.id)}
                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  title="Remove group"
+                  title="Remove condition"
                 >
                   <Trash2 size={18} />
                 </button>
-              )}
-            </div>
+              </div>
 
-            {/* Conditions */}
-            <div className="p-6 space-y-4">
-              {group.conditions.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Settings size={32} className="mx-auto mb-2 text-gray-300" />
-                  <p>No conditions added yet</p>
-                  <p className="text-sm">Click &quot;Add Condition&quot; to get started</p>
-                </div>
-              ) : (
-                group.conditions.map((condition, condIndex) => {
-                  const availableOperators = getAvailableOperators(condition.entity, condition.field);
-                  const fieldType = getFieldType(condition.entity, condition.field);
-                  const enumValues = getFieldOptions(condition.entity, condition.field);
-                  const currentEntity = entities.find((e) => e.name === condition.entity);
-
-                  return (
-                    <div
-                      key={condition.id}
-                      className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200"
+              <div className="p-6 space-y-4">
+                {item.rules.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Settings size={32} className="mx-auto mb-2 text-gray-300" />
+                    <p>No rules added yet</p>
+                    <button
+                      onClick={() => addRule(item.id)}
+                      className="text-secondary hover:text-secondary/80 text-sm font-medium mt-2"
                     >
-                      {/* Drag Handle */}
-                      <div className="cursor-move text-gray-400 hover:text-gray-600">
-                        <GripVertical size={20} />
-                      </div>
+                      Add Rule
+                    </button>
+                  </div>
+                ) : (
+                  item.rules.map((rule, ruleIndex) => {
+                    const availableOperators = getAvailableOperators(rule.entity, rule.field);
+                    const fieldType = getFieldType(rule.entity, rule.field);
+                    const enumValues = getFieldOptions(rule.entity, rule.field);
+                    const currentEntity = entities.find(e => e.name === rule.entity);
 
-                      {/* Field Number */}
-                      <span className="text-sm font-medium text-gray-500 w-6">{condIndex + 1}.</span>
+                    return (
+                      <div key={rule.id} className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <span className="text-sm font-medium text-gray-500 w-6">{ruleIndex + 1}.</span>
 
-                      {/* Entity Selector */}
-                      <div className="flex-shrink-0 w-32">
-                        <select
-                          value={condition.entity}
-                          onChange={(e) =>
-                            updateCondition(group.id, condition.id, { entity: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                        >
-                          {entities.map((entity) => (
-                            <option key={entity.name} value={entity.name}>
-                              {formatFieldName(entity.name)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Field Selector */}
-                      <div className="flex-shrink-0 w-40">
-                        <select
-                          value={condition.field}
-                          onChange={(e) =>
-                            updateCondition(group.id, condition.id, { field: e.target.value })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                        >
-                          {currentEntity?.fields.map((field) => (
-                            <option key={field.name} value={field.name}>
-                              {formatFieldName(field.name)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Operator Selector */}
-                      <div className="flex-shrink-0 w-44">
-                        <div className="relative">
+                        <div className="flex-shrink-0 w-32">
                           <select
-                            value={condition.operator}
-                            onChange={(e) =>
-                              updateCondition(group.id, condition.id, {
-                                operator: e.target.value as ComparisonOperator,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary appearance-none"
+                            value={rule.entity}
+                            onChange={(e) => updateRule(item.id, rule.id, { entity: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
                           >
-                            {availableOperators.map((op) => (
+                            {entities.map(entity => (
+                              <option key={entity.name} value={entity.name}>
+                                {formatFieldName(entity.name)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex-shrink-0 w-40">
+                          <select
+                            value={rule.field}
+                            onChange={(e) => updateRule(item.id, rule.id, { field: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                          >
+                            {currentEntity?.fields.map(field => (
+                              <option key={field.name} value={field.name}>
+                                {formatFieldName(field.name)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="flex-shrink-0 w-44">
+                          <select
+                            value={rule.operator}
+                            onChange={(e) => updateRule(item.id, rule.id, { operator: e.target.value as ComparisonOperator })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                          >
+                            {availableOperators.map(op => (
                               <option key={op.value} value={op.value}>
                                 {op.label}
                               </option>
                             ))}
                           </select>
-                          <ChevronDown
-                            size={16}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                          />
                         </div>
-                      </div>
 
-                      {/* Value Input */}
-                      <div className="flex-1">
-                        {fieldType === 'boolean' ? (
-                          <select
-                            value={condition.value}
-                            onChange={(e) =>
-                              updateCondition(group.id, condition.id, { value: e.target.value })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                        <div className="flex-1">
+                          {fieldType === 'boolean' ? (
+                            <select
+                              value={rule.value}
+                              onChange={(e) => updateRule(item.id, rule.id, { value: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                            >
+                              <option value="">Select...</option>
+                              <option value="true">True</option>
+                              <option value="false">False</option>
+                            </select>
+                          ) : fieldType === 'enum' && enumValues ? (
+                            <select
+                              value={rule.value}
+                              onChange={(e) => updateRule(item.id, rule.id, { value: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                            >
+                              <option value="">Select...</option>
+                              {enumValues.map(val => (
+                                <option key={val} value={val}>{val}</option>
+                              ))}
+                            </select>
+                          ) : fieldType === 'number' ? (
+                            <input
+                              type="number"
+                              value={rule.value}
+                              onChange={(e) => updateRule(item.id, rule.id, { value: e.target.value })}
+                              placeholder="Enter value"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                            />
+                          ) : (
+                            <input
+                              type="text"
+                              value={rule.value}
+                              onChange={(e) => updateRule(item.id, rule.id, { value: e.target.value })}
+                              placeholder="Enter value"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                            />
+                          )}
+                        </div>
+
+                        {item.rules.length > 1 && (
+                          <button
+                            onClick={() => removeRule(item.id, rule.id)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                           >
-                            <option value="">Select...</option>
-                            <option value="true">True</option>
-                            <option value="false">False</option>
-                          </select>
-                        ) : fieldType === 'enum' && enumValues ? (
-                          <select
-                            value={condition.value}
-                            onChange={(e) =>
-                              updateCondition(group.id, condition.id, { value: e.target.value })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                          >
-                            <option value="">Select...</option>
-                            {enumValues.map((val) => (
-                              <option key={val} value={val}>
-                                {val}
-                              </option>
-                            ))}
-                          </select>
-                        ) : fieldType === 'number' ? (
-                          <input
-                            type="number"
-                            value={condition.value}
-                            onChange={(e) =>
-                              updateCondition(group.id, condition.id, { value: e.target.value })
-                            }
-                            placeholder="Enter value"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={condition.value}
-                            onChange={(e) =>
-                              updateCondition(group.id, condition.id, { value: e.target.value })
-                            }
-                            placeholder="Enter value"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
-                          />
+                            <Trash2 size={18} />
+                          </button>
                         )}
                       </div>
+                    );
+                  })
+                )}
 
-                      {/* Remove Button */}
-                      {group.conditions.length > 1 && (
-                        <button
-                          onClick={() => removeCondition(group.id, condition.id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Remove condition"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })
-              )}
-
-              {/* Add Condition Button */}
-              <button
-                onClick={() => addCondition(group.id)}
-                className="flex items-center gap-2 px-4 py-2 text-secondary hover:bg-secondary/5 rounded-lg transition-colors text-sm font-medium"
-              >
-                <Plus size={16} />
-                Add Condition
-              </button>
+                <button
+                  onClick={() => addRule(item.id)}
+                  className="flex items-center gap-2 px-4 py-2 text-secondary hover:bg-secondary/5 rounded-lg transition-colors text-sm font-medium"
+                >
+                  <Plus size={16} />
+                  Add Rule
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
-        {/* Add Group Button */}
         <button
-          onClick={addGroup}
+          onClick={addConditionItem}
           className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-secondary hover:text-secondary transition-colors flex items-center justify-center gap-2 font-medium"
         >
           <Plus size={20} />
-          Add Condition Group
+          Add New Condition
         </button>
 
-        {/* Logic Preview */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-          <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
-            <Settings size={16} />
-            Logic Preview
-          </h3>
-          <div className="text-sm text-blue-900 font-mono bg-white rounded-lg p-4 border border-blue-100 overflow-x-auto">
-            <pre>{JSON.stringify(buildLogicObject(), null, 2)}</pre>
-          </div>
-        </div>
-
-        {/* Actions */}
         <div className="flex gap-3 pt-6">
           <Button
             type="button"
@@ -675,7 +610,7 @@ export const RewardConditions: React.FC = () => {
             variant="primary"
             onClick={handleSave}
             loading={saving}
-            disabled={saving || conditionGroups.every(g => g.conditions.length === 0)}
+            disabled={saving || conditionItems.every(item => item.rules.length === 0)}
             className="flex-1"
           >
             <span className="flex items-center gap-2 justify-center">
@@ -686,7 +621,6 @@ export const RewardConditions: React.FC = () => {
         </div>
       </div>
 
-      {/* Toast */}
       {toast && (
         <Toast
           message={toast.message}

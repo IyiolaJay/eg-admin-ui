@@ -85,8 +85,36 @@ export interface CreateRewardRequest {
   rewardClass: RewardClass;
 }
 
+// Update reward request
+export interface UpdateRewardRequest {
+  rewardName?: string;
+  rewardAmount?: number;
+  rewardDescription?: string;
+  rewardType?: RewardType;
+  rewardClass?: RewardClass;
+  isActive?: boolean;
+}
+
 // Create reward response
 export type CreateRewardResponse = ApiResponse<Reward>;
+
+// Update conditions item (single condition in the array)
+export interface UpdateConditionItem {
+  id?: string; // With id = update, without id = create
+  logic: ConditionLogic;
+}
+
+// Update conditions request (entire conditions array)
+export interface UpdateConditionsRequest {
+  conditions: UpdateConditionItem[];
+}
+
+// Update conditions response
+export interface UpdateConditionsResponse {
+  updated: number;
+  created: number;
+  conditions: RewardConditionsData[];
+}
 
 // Condition field types
 export type ConditionFieldType = 'string' | 'number' | 'boolean' | 'enum';

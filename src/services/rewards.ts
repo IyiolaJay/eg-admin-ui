@@ -11,6 +11,9 @@ import type {
   ConditionFieldsResponse,
   SaveConditionsRequest,
   RewardConditionsData,
+  UpdateRewardRequest,
+  UpdateConditionsRequest,
+  UpdateConditionsResponse,
 } from '../types/reward';
 
 export interface FetchRewardsParams {
@@ -157,14 +160,14 @@ export async function fetchConditionFields(): Promise<ConditionFieldsResponse> {
 }
 
 /**
- * Save conditions for a reward
+ * Update reward conditions (add new or update existing)
  */
-export async function saveRewardConditions(
+export async function updateRewardConditions(
   rewardId: string,
-  conditions: SaveConditionsRequest
-): Promise<RewardConditionsData> {
+  conditions: UpdateConditionsRequest
+): Promise<UpdateConditionsResponse> {
   try {
-    const response = await apiClient.post<{ success: boolean; content: RewardConditionsData; message: string }>(
+    const response = await apiClient.put<{ success: boolean; message: string; content: UpdateConditionsResponse }>(
       ENDPOINTS.REWARD_CONDITIONS(rewardId),
       conditions
     );
@@ -173,7 +176,47 @@ export async function saveRewardConditions(
       return response.data.content;
     }
 
-    throw new Error(response.data.message || 'Failed to save reward conditions');
+    throw new Error(response.data.message || 'Failed to update reward conditions');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Update a reward
+ */
+export async function updateReward(rewardId: string, rewardData: UpdateRewardRequest): Promise<Reward> {
+  try {
+    const response = await apiClient.patch<{ success: boolean; content: Reward; message: string }>(
+      ENDPOINTS.REWARD_DETAILS(rewardId),
+      rewardData
+    );
+
+    if (response.data.success && response.data.content) {
+      return response.data.content;
+    }
+
+    throw new Error(response.data.message || 'Failed to update reward');
+  } catch (error) {
+    throw new Error(extractApiErrorMessage(error));
+  }
+}
+
+/**
+ * Delete multiple conditions in batch
+ */
+export async function deleteRewardConditions(conditionIds: string[]): Promise<{ deletedCount: number }> {
+  try {
+    const response = await apiClient.delete<{ success: boolean; message: string; data: { deletedCount: number } }>(
+      ENDPOINTS.REWARD_CONDITIONS_BATCH_DELETE,
+      { data: { conditionIds } }
+    );
+
+    if (response.data.success) {
+      return { deletedCount: response.data.data?.deletedCount || 0 };
+    }
+
+    throw new Error(response.data.message || 'Failed to delete conditions');
   } catch (error) {
     throw new Error(extractApiErrorMessage(error));
   }

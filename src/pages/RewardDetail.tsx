@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Button, Toast } from '../components';
-import { fetchRewardById, updateRewardStatus } from '../services/rewards';
-import type { Reward } from '../types/reward';
+import { fetchRewardById, updateRewardStatus, updateReward } from '../services/rewards';
+import type { Reward, RewardType, RewardClass } from '../types/reward';
 import {
   ArrowLeft,
   Gift,
@@ -14,6 +14,7 @@ import {
   Power,
   AlertTriangle,
   CheckCircle,
+  Pencil,
 } from 'lucide-react';
 
 export const RewardDetail: React.FC = () => {
@@ -23,6 +24,15 @@ export const RewardDetail: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [deactivating, setDeactivating] = useState(false);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    rewardName: '',
+    rewardAmount: '',
+    rewardDescription: '',
+    rewardType: '' as RewardType,
+    rewardClass: '' as RewardClass,
+  });
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
 
@@ -70,6 +80,46 @@ export const RewardDetail: React.FC = () => {
 
   const handleConfigureConditions = () => {
     navigate(`/admin/reward-hub/rewards/${rewardId}/conditions`);
+  };
+
+  const handleEditClick = () => {
+    if (!reward) return;
+    setEditForm({
+      rewardName: reward.rewardName,
+      rewardAmount: reward.rewardAmount,
+      rewardDescription: reward.rewardDescription,
+      rewardType: reward.rewardType,
+      rewardClass: reward.rewardClass,
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!reward) return;
+
+    setEditing(true);
+    try {
+      const updatedReward = await updateReward(reward.id, {
+        rewardName: editForm.rewardName,
+        rewardAmount: parseFloat(editForm.rewardAmount),
+        rewardDescription: editForm.rewardDescription,
+        rewardType: editForm.rewardType,
+        rewardClass: editForm.rewardClass,
+      });
+      setReward(updatedReward);
+      setShowEditModal(false);
+      setToast({
+        message: 'Reward updated successfully!',
+        type: 'success',
+      });
+    } catch (err) {
+      setToast({
+        message: err instanceof Error ? err.message : 'Failed to update reward',
+        type: 'error',
+      });
+    } finally {
+      setEditing(false);
+    }
   };
 
   const getRewardTypeColor = (type: string) => {
@@ -250,7 +300,15 @@ export const RewardDetail: React.FC = () => {
           
           {/* Action Buttons */}
           <div className="flex items-center gap-3">
-            {reward.isActive && (
+            <Button
+              variant="secondary"
+              onClick={handleEditClick}
+              className="flex items-center gap-2"
+            >
+              <Pencil size={18} />
+              Edit
+            </Button>
+            {reward.isActive ? (
               <>
                 <Button
                   variant="secondary"
@@ -269,6 +327,15 @@ export const RewardDetail: React.FC = () => {
                   Deactivate
                 </Button>
               </>
+            ) : (
+              <Button
+                variant="success"
+                onClick={() => setShowDeactivateModal(true)}
+                className="flex items-center gap-2"
+              >
+                <Power size={18} />
+                Reactivate
+              </Button>
             )}
           </div>
         </div>
@@ -491,6 +558,106 @@ export const RewardDetail: React.FC = () => {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !editing && setShowEditModal(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Edit Reward</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reward Name</label>
+                <input
+                  type="text"
+                  value={editForm.rewardName}
+                  onChange={(e) => setEditForm({ ...editForm, rewardName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                  disabled={editing}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                <input
+                  type="number"
+                  value={editForm.rewardAmount}
+                  onChange={(e) => setEditForm({ ...editForm, rewardAmount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                  disabled={editing}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={editForm.rewardDescription}
+                  onChange={(e) => setEditForm({ ...editForm, rewardDescription: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                  disabled={editing}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={editForm.rewardType}
+                    onChange={(e) => setEditForm({ ...editForm, rewardType: e.target.value as RewardType })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                    disabled={editing}
+                  >
+                    <option value="BONUS">Bonus</option>
+                    <option value="REFERRAL">Referral</option>
+                    <option value="DISCOUNT">Discount</option>
+                    <option value="CASHBACK">Cashback</option>
+                    <option value="LOYALTY">Loyalty</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+                  <select
+                    value={editForm.rewardClass}
+                    onChange={(e) => setEditForm({ ...editForm, rewardClass: e.target.value as RewardClass })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                    disabled={editing}
+                  >
+                    <option value="ALL">Everyone</option>
+                    <option value="RUNNER">Runners</option>
+                    <option value="CREATOR">Creators</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="secondary"
+                onClick={() => setShowEditModal(false)}
+                disabled={editing}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleEditSave}
+                loading={editing}
+                disabled={editing}
+                className="flex-1"
+              >
+                {editing ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
