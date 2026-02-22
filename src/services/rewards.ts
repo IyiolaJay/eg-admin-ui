@@ -9,8 +9,6 @@ import type {
   CreateRewardRequest,
   CreateRewardResponse,
   ConditionFieldsResponse,
-  SaveConditionsRequest,
-  RewardConditionsData,
   UpdateRewardRequest,
   UpdateConditionsRequest,
   UpdateConditionsResponse,
