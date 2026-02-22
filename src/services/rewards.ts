@@ -47,8 +47,12 @@ export async function fetchRewards(params: FetchRewardsParams = {}): Promise<Rew
       queryParams.append('isActive', filters.isActive.toString());
     }
     
+    if (filters?.search) {
+      queryParams.append('search', filters.search);
+    }
+    
     const queryString = queryParams.toString();
-    const url = `${ENDPOINTS.REWARDS_ACTIVE}${queryString ? `?${queryString}` : ''}`;
+    const url = `${ENDPOINTS.REWARDS_ALL}${queryString ? `?${queryString}` : ''}`;
     
     const response = await apiClient.get<RewardsListApiResponse>(url);
     
@@ -114,20 +118,20 @@ export async function createReward(rewardData: CreateRewardRequest): Promise<Rew
 }
 
 /**
- * Deactivate a reward
+ * Activate or deactivate a reward
  */
-export async function deactivateReward(rewardId: string): Promise<Reward> {
+export async function updateRewardStatus(rewardId: string, isActive: boolean): Promise<Reward> {
   try {
     const response = await apiClient.patch<{ success: boolean; content: Reward; message: string }>(
       ENDPOINTS.REWARD_DETAILS(rewardId),
-      { isActive: false }
+      { isActive }
     );
 
     if (response.data.success && response.data.content) {
       return response.data.content;
     }
 
-    throw new Error(response.data.message || 'Failed to deactivate reward');
+    throw new Error(response.data.message || `Failed to ${isActive ? 'activate' : 'deactivate'} reward`);
   } catch (error) {
     throw new Error(extractApiErrorMessage(error));
   }

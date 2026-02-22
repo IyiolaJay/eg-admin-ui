@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout, Button, Toast } from '../components';
 import { RewardsList } from '../components/RewardsList';
 import { Plus, Eye, ArrowLeft } from 'lucide-react';
-import { fetchRewards, deactivateReward } from '../services/rewards';
-import type { Reward, RewardType } from '../types/reward';
+import { fetchRewards, updateRewardStatus } from '../services/rewards';
+import type { Reward, RewardType, RewardClass } from '../types/reward';
 
 // View states
 type ViewState = 'landing' | 'list';
@@ -19,6 +19,9 @@ export const RewardHub: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [selectedType, setSelectedType] = useState<RewardType | 'ALL'>('ALL');
+  const [selectedClass, setSelectedClass] = useState<RewardClass | 'ALL'>('ALL');
+  const [selectedActive, setSelectedActive] = useState<boolean | 'ALL'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [showDeactivateModal, setShowDeactivateModal] = useState(false);
   const [rewardToDeactivate, setRewardToDeactivate] = useState<Reward | null>(null);
@@ -29,10 +32,30 @@ export const RewardHub: React.FC = () => {
     
     setLoading(true);
     try {
+      const filters: {
+        rewardType?: RewardType;
+        rewardClass?: RewardClass;
+        isActive?: boolean;
+        search?: string;
+      } = {};
+
+      if (selectedType !== 'ALL') {
+        filters.rewardType = selectedType;
+      }
+      if (selectedClass !== 'ALL') {
+        filters.rewardClass = selectedClass;
+      }
+      if (selectedActive !== 'ALL') {
+        filters.isActive = selectedActive;
+      }
+      if (searchQuery.trim()) {
+        filters.search = searchQuery.trim();
+      }
+
       const response = await fetchRewards({
         offset: currentPage,
         limit: pageSize,
-        filters: selectedType !== 'ALL' ? { rewardType: selectedType } : undefined,
+        filters: Object.keys(filters).length > 0 ? filters : undefined,
       });
       setRewards(response.rewards);
       setTotalPages(response.pagination.totalPages);
@@ -50,7 +73,7 @@ export const RewardHub: React.FC = () => {
   useEffect(() => {
     loadRewards();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, pageSize, currentView, selectedType]);
+  }, [currentPage, pageSize, currentView, selectedType, selectedClass, selectedActive, searchQuery]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -63,35 +86,52 @@ export const RewardHub: React.FC = () => {
 
   const handleTypeChange = (type: RewardType | 'ALL') => {
     setSelectedType(type);
-    setCurrentPage(1); // Reset to first page when filter changes
+    setCurrentPage(1);
+  };
+
+  const handleClassChange = (rewardClass: RewardClass | 'ALL') => {
+    setSelectedClass(rewardClass);
+    setCurrentPage(1);
+  };
+
+  const handleActiveChange = (isActive: boolean | 'ALL') => {
+    setSelectedActive(isActive);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
   };
 
   const handleCreateReward = () => {
     navigate('/admin/reward-hub/create');
   };
 
-  const handleDeactivateClick = (reward: Reward) => {
+  const handleStatusToggleClick = (reward: Reward) => {
     setRewardToDeactivate(reward);
     setShowDeactivateModal(true);
   };
 
-  const handleDeactivateConfirm = async () => {
+  const handleStatusToggleConfirm = async () => {
     if (!rewardToDeactivate) return;
     
+    const isActivating = !rewardToDeactivate.isActive;
     setDeactivating(true);
     try {
-      await deactivateReward(rewardToDeactivate.id);
+      await updateRewardStatus(rewardToDeactivate.id, isActivating);
       setToast({
-        message: `"${rewardToDeactivate.rewardName}" has been deactivated`,
+        message: isActivating 
+          ? `"${rewardToDeactivate.rewardName}" has been activated`
+          : `"${rewardToDeactivate.rewardName}" has been deactivated`,
         type: 'success',
       });
       setShowDeactivateModal(false);
       setRewardToDeactivate(null);
-      // Refresh the rewards list
       loadRewards();
     } catch (err) {
       setToast({
-        message: err instanceof Error ? err.message : 'Failed to deactivate reward',
+        message: err instanceof Error ? err.message : `Failed to ${isActivating ? 'activate' : 'deactivate'} reward`,
         type: 'error',
       });
     } finally {
@@ -179,7 +219,7 @@ export const RewardHub: React.FC = () => {
             <ArrowLeft size={24} />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Active Rewards</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Rewards</h1>
             <p className="text-gray-600 mt-1">
               {totalItems} reward{totalItems !== 1 ? 's' : ''} available
             </p>
@@ -205,13 +245,19 @@ export const RewardHub: React.FC = () => {
         pageSize={pageSize}
         totalItems={totalItems}
         selectedType={selectedType}
+        selectedClass={selectedClass}
+        selectedActive={selectedActive}
+        searchQuery={searchQuery}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         onTypeChange={handleTypeChange}
-        onDeactivateClick={handleDeactivateClick}
+        onClassChange={handleClassChange}
+        onActiveChange={handleActiveChange}
+        onSearchChange={handleSearchChange}
+        onDeactivateClick={handleStatusToggleClick}
       />
 
-      {/* Deactivate Modal */}
+      {/* Status Toggle Modal */}
       {showDeactivateModal && rewardToDeactivate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
@@ -219,42 +265,58 @@ export const RewardHub: React.FC = () => {
             onClick={() => !deactivating && setShowDeactivateModal(false)}
           />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Deactivate Reward</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to deactivate <strong>"{rewardToDeactivate.rewardName}"</strong>? 
-                This will stop users from being able to earn this reward.
-              </p>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowDeactivateModal(false)}
-                  disabled={deactivating}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeactivateConfirm}
-                  disabled={deactivating}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {deactivating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                      Deactivating...
-                    </>
-                  ) : (
-                    'Deactivate'
-                  )}
-                </button>
-              </div>
-            </div>
+            {(() => {
+              const isActivating = !rewardToDeactivate.isActive;
+              return (
+                <div className="text-center">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isActivating ? 'bg-green-100' : 'bg-red-100'}`}>
+                    {isActivating ? (
+                      <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {isActivating ? 'Activate Reward' : 'Deactivate Reward'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {isActivating ? (
+                      <>Are you sure you want to activate <strong>"{rewardToDeactivate.rewardName}"</strong>? Users will be able to earn this reward.</>
+                    ) : (
+                      <>Are you sure you want to deactivate <strong>"{rewardToDeactivate.rewardName}"</strong>? This will stop users from being able to earn this reward.</>
+                    )}
+                  </p>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowDeactivateModal(false)}
+                      disabled={deactivating}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleStatusToggleConfirm}
+                      disabled={deactivating}
+                      className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${isActivating ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}`}
+                    >
+                      {deactivating ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          {isActivating ? 'Activating...' : 'Deactivating...'}
+                        </>
+                      ) : (
+                        isActivating ? 'Activate' : 'Deactivate'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}

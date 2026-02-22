@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gift, Calendar, User, Users, Briefcase, ChevronRight, Tag, Settings, Power, Eye } from 'lucide-react';
+import { Gift, Calendar, User, Users, Briefcase, ChevronRight, Tag, Settings, Power, Eye, Search } from 'lucide-react';
 import { Pagination } from './Pagination';
 import type { Reward, RewardType, RewardClass } from '../types/reward';
 
@@ -12,18 +12,37 @@ interface RewardsListProps {
   pageSize: number;
   totalItems: number;
   selectedType: RewardType | 'ALL';
+  selectedClass: RewardClass | 'ALL';
+  selectedActive: boolean | 'ALL';
+  searchQuery: string;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
   onTypeChange: (type: RewardType | 'ALL') => void;
+  onClassChange: (rewardClass: RewardClass | 'ALL') => void;
+  onActiveChange: (isActive: boolean | 'ALL') => void;
+  onSearchChange: (query: string) => void;
   onDeactivateClick?: (reward: Reward) => void;
 }
 
 const REWARD_TYPES: { value: RewardType | 'ALL'; label: string }[] = [
-  { value: 'ALL', label: 'All Categories' },
+  { value: 'ALL', label: 'All Types' },
   { value: 'DISCOUNT', label: 'Discounts' },
   { value: 'REFERRAL', label: 'Referrals' },
   { value: 'CASHBACK', label: 'Cashbacks' },
   { value: 'BONUS', label: 'Bonuses' },
+  { value: 'LOYALTY', label: 'Loyalty' },
+];
+
+const REWARD_CLASSES: { value: RewardClass | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'All Classes' },
+  { value: 'CREATOR', label: 'Creators' },
+  { value: 'RUNNER', label: 'Runners' },
+];
+
+const ACTIVE_OPTIONS: { value: boolean | 'ALL'; label: string }[] = [
+  { value: 'ALL', label: 'All Status' },
+  { value: true, label: 'Active' },
+  { value: false, label: 'Inactive' },
 ];
 
 export const RewardsList: React.FC<RewardsListProps> = ({
@@ -34,9 +53,15 @@ export const RewardsList: React.FC<RewardsListProps> = ({
   pageSize,
   totalItems,
   selectedType,
+  selectedClass,
+  selectedActive,
+  searchQuery,
   onPageChange,
   onPageSizeChange,
   onTypeChange,
+  onClassChange,
+  onActiveChange,
+  onSearchChange,
   onDeactivateClick,
 }) => {
   const navigate = useNavigate();
@@ -134,23 +159,81 @@ export const RewardsList: React.FC<RewardsListProps> = ({
       <div className="space-y-6">
         {/* Filter Bar - Always show */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-2">Filter by Category</h3>
-              <div className="flex flex-wrap gap-2">
-                {REWARD_TYPES.map((type) => (
-                  <button
-                    key={type.value}
-                    onClick={() => onTypeChange(type.value)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      selectedType === type.value
-                        ? 'bg-secondary text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {type.label}
-                  </button>
-                ))}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Search */}
+              <div className="w-full sm:w-64">
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Search</label>
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search rewards..."
+                    value={searchQuery}
+                    onChange={(e) => onSearchChange(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                  />
+                </div>
+              </div>
+
+              {/* Type Filter */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Type</label>
+                <div className="flex flex-wrap gap-1">
+                  {REWARD_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      onClick={() => onTypeChange(type.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedType === type.value
+                          ? 'bg-secondary text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Class Filter */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Class</label>
+                <div className="flex flex-wrap gap-1">
+                  {REWARD_CLASSES.map((cls) => (
+                    <button
+                      key={cls.value}
+                      onClick={() => onClassChange(cls.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedClass === cls.value
+                          ? 'bg-secondary text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {cls.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active Status Filter */}
+              <div>
+                <label className="text-xs font-medium text-gray-500 mb-1 block">Status</label>
+                <div className="flex flex-wrap gap-1">
+                  {ACTIVE_OPTIONS.map((option) => (
+                    <button
+                      key={String(option.value)}
+                      onClick={() => onActiveChange(option.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        selectedActive === option.value
+                          ? 'bg-secondary text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             <div className="text-sm text-gray-500">
@@ -189,23 +272,81 @@ export const RewardsList: React.FC<RewardsListProps> = ({
     <div className="space-y-6">
       {/* Filter Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Filter by Category</h3>
-            <div className="flex flex-wrap gap-2">
-              {REWARD_TYPES.map((type) => (
-                <button
-                  key={type.value}
-                  onClick={() => onTypeChange(type.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedType === type.value
-                      ? 'bg-secondary text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {type.label}
-                </button>
-              ))}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="w-full sm:w-64">
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Search</label>
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search rewards..."
+                  value={searchQuery}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary"
+                />
+              </div>
+            </div>
+
+            {/* Type Filter */}
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Type</label>
+              <div className="flex flex-wrap gap-1">
+                {REWARD_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => onTypeChange(type.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedType === type.value
+                        ? 'bg-secondary text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Class Filter */}
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Class</label>
+              <div className="flex flex-wrap gap-1">
+                {REWARD_CLASSES.map((cls) => (
+                  <button
+                    key={cls.value}
+                    onClick={() => onClassChange(cls.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedClass === cls.value
+                        ? 'bg-secondary text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {cls.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Active Status Filter */}
+            <div>
+              <label className="text-xs font-medium text-gray-500 mb-1 block">Status</label>
+              <div className="flex flex-wrap gap-1">
+                {ACTIVE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    onClick={() => onActiveChange(option.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      selectedActive === option.value
+                        ? 'bg-secondary text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="text-sm text-gray-500">
@@ -293,7 +434,7 @@ export const RewardsList: React.FC<RewardsListProps> = ({
                       <Eye size={20} />
                     </button>
                     
-                    {reward.isActive && (
+                    {reward.isActive ? (
                       <>
                         <button
                           onClick={() => handleConfigureConditions(reward.id)}
@@ -311,6 +452,14 @@ export const RewardsList: React.FC<RewardsListProps> = ({
                           <Power size={20} />
                         </button>
                       </>
+                    ) : (
+                      <button
+                        onClick={() => onDeactivateClick?.(reward)}
+                        className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="Reactivate Reward"
+                      >
+                        <Power size={20} className="rotate-180" />
+                      </button>
                     )}
                     
                     <button

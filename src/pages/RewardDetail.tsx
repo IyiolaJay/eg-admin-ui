@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout, Button, Toast } from '../components';
-import { fetchRewardById, deactivateReward } from '../services/rewards';
+import { fetchRewardById, updateRewardStatus } from '../services/rewards';
 import type { Reward } from '../types/reward';
 import {
   ArrowLeft,
@@ -45,22 +45,22 @@ export const RewardDetail: React.FC = () => {
     }
   };
 
-  const handleDeactivate = async () => {
+  const handleStatusToggle = async () => {
     if (!reward) return;
 
+    const isActivating = !reward.isActive;
     setDeactivating(true);
     try {
-      await deactivateReward(reward.id);
+      await updateRewardStatus(reward.id, isActivating);
       setToast({
-        message: 'Reward deactivated successfully',
+        message: isActivating ? 'Reward activated successfully' : 'Reward deactivated successfully',
         type: 'success',
       });
       setShowDeactivateModal(false);
-      // Refresh reward data
       await loadReward();
     } catch (err) {
       setToast({
-        message: err instanceof Error ? err.message : 'Failed to deactivate reward',
+        message: err instanceof Error ? err.message : `Failed to ${isActivating ? 'activate' : 'deactivate'} reward`,
         type: 'error',
       });
     } finally {
@@ -392,10 +392,10 @@ export const RewardDetail: React.FC = () => {
           </div>
 
           {/* Quick Actions */}
-          {reward.isActive && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-sm font-medium text-gray-500 mb-4">Quick Actions</h3>
-              <div className="space-y-3">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-4">Quick Actions</h3>
+            <div className="space-y-3">
+              {reward.isActive && (
                 <button
                   onClick={handleConfigureConditions}
                   className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-secondary hover:bg-secondary/5 transition-colors text-left"
@@ -412,22 +412,30 @@ export const RewardDetail: React.FC = () => {
                     </p>
                   </div>
                 </button>
-                
-                <button
-                  onClick={() => setShowDeactivateModal(true)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-red-300 hover:bg-red-50 transition-colors text-left"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                    <Power size={20} className="text-red-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-red-600">Deactivate Reward</p>
-                    <p className="text-sm text-gray-500">Stop this reward from being active</p>
-                  </div>
-                </button>
-              </div>
+              )}
+              
+              <button
+                onClick={() => setShowDeactivateModal(true)}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+                  reward.isActive 
+                    ? 'border-gray-200 hover:border-red-300 hover:bg-red-50' 
+                    : 'border-gray-200 hover:border-green-300 hover:bg-green-50'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${reward.isActive ? 'bg-red-100' : 'bg-green-100'}`}>
+                  <Power size={20} className={reward.isActive ? 'text-red-600' : 'text-green-600'} />
+                </div>
+                <div>
+                  <p className={`font-medium ${reward.isActive ? 'text-red-600' : 'text-green-600'}`}>
+                    {reward.isActive ? 'Deactivate Reward' : 'Reactivate Reward'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {reward.isActive ? 'Stop this reward from being active' : 'Make this reward active again'}
+                  </p>
+                </div>
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -439,36 +447,50 @@ export const RewardDetail: React.FC = () => {
             onClick={() => setShowDeactivateModal(false)}
           />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Deactivate Reward</h3>
-              <p className="text-gray-600 mb-6">
-                Are you sure you want to deactivate <strong>"{reward.rewardName}"</strong>? 
-                This will stop users from being able to earn this reward.
-              </p>
-              
-              <div className="flex gap-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowDeactivateModal(false)}
-                  disabled={deactivating}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="danger"
-                  onClick={handleDeactivate}
-                  loading={deactivating}
-                  disabled={deactivating}
-                  className="flex-1"
-                >
-                  {deactivating ? 'Deactivating...' : 'Deactivate'}
-                </Button>
-              </div>
-            </div>
+            {(() => {
+              const isActivating = reward && !reward.isActive;
+              return (
+                <div className="text-center">
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isActivating ? 'bg-green-100' : 'bg-red-100'}`}>
+                    {isActivating ? (
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    ) : (
+                      <AlertTriangle className="w-8 h-8 text-red-600" />
+                    )}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {isActivating ? 'Activate Reward' : 'Deactivate Reward'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {isActivating ? (
+                      <>Are you sure you want to activate <strong>"{reward.rewardName}"</strong>? Users will be able to earn this reward.</>
+                    ) : (
+                      <>Are you sure you want to deactivate <strong>"{reward.rewardName}"</strong>? This will stop users from being able to earn this reward.</>
+                    )}
+                  </p>
+                  
+                  <div className="flex gap-3">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setShowDeactivateModal(false)}
+                      disabled={deactivating}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      variant={isActivating ? 'success' : 'danger'}
+                      onClick={handleStatusToggle}
+                      loading={deactivating}
+                      disabled={deactivating}
+                      className="flex-1"
+                    >
+                      {deactivating ? (isActivating ? 'Activating...' : 'Deactivating...') : (isActivating ? 'Activate' : 'Deactivate')}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
